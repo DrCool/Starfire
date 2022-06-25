@@ -1,6 +1,6 @@
 ## Run the server
 
-Type `./lib/socket.rb` to run the server on port 2000.
+Type `cd lib`, then type `./lib/socket.rb` to run the server on port 2000.
 
 ## Launch a telnet client to connect
 
