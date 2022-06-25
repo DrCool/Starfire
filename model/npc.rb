@@ -1,7 +1,7 @@
 require 'tribe'
-require '../lib/world'
-require '../lib/actable'
-require '../model/event'
+require_relative '../lib/world'
+require_relative '../lib/actable'
+require_relative './event'
 
 class NPC < ActiveRecord::Base
   include Tribe::Actable

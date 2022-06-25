@@ -1,5 +1,5 @@
 require 'tribe'
-require '../lib/actable'
+require_relative '../lib/actable'
 
 class CreatureInstance < ActiveRecord::Base
   include Tribe::Actable

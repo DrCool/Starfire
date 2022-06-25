@@ -1,4 +1,4 @@
-require '../model/event'
+require_relative '../model/event'
 
 class PlayerCharacter < ActiveRecord::Base
 	attr_accessor :client # contains the player's socket connection for things like @client.puts "text"
