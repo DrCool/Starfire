@@ -1,0 +1,54 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    activemodel (5.2.6)
+      activesupport (= 5.2.6)
+    activerecord (5.2.6)
+      activemodel (= 5.2.6)
+      activesupport (= 5.2.6)
+      arel (>= 9.0)
+    activesupport (5.2.6)
+      concurrent-ruby (~> 1.0, >= 1.0.2)
+      i18n (>= 0.7, < 2)
+      minitest (~> 5.1)
+      tzinfo (~> 1.1)
+    arel (9.0.0)
+    awesome_print (1.7.0)
+    concurrent-ruby (1.1.9)
+    eventmachine (1.2.7)
+    formatr (1.10.1)
+    i18n (1.8.11)
+      concurrent-ruby (~> 1.0)
+    minitest (5.14.4)
+    mysql2 (0.4.10)
+    pastel (0.8.0)
+      tty-color (~> 0.5)
+    rake (13.0.6)
+    thread_safe (0.3.6)
+    totem (0.0.8)
+    tribe (0.6.5)
+      workers (~> 0.6.1)
+    tty-color (0.6.0)
+    tzinfo (1.2.9)
+      thread_safe (~> 0.1)
+    worker (0.6.0)
+    workers (0.6.1)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  activerecord
+  awesome_print (~> 1.7.0)
+  eventmachine
+  formatr
+  minitest
+  mysql2 (~> 0.4.10)
+  pastel
+  rake
+  totem
+  tribe
+  worker
+
+BUNDLED WITH
+   1.16.6

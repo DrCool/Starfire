@@ -1,0 +1,12 @@
+        +---------------+
+        |  Future-Zone  |
+        +---------------+------------------------+
+        |                                        |
+        | A telnet multiplayer game written by   |
+        | Aaron McMahon                          |
+        |                                        |
+        | First started in 1994                  |
+        +----------------------------------------+
+        | Modernized starting in December 2021   |
+        +----------------------------------------+
+
