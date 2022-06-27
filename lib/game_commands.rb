@@ -1,8 +1,34 @@
 module GameCommands
 
+  def process_response_commands(commands)
+    return if commands.empty?
+    flag_print_location = false
+
+    print commands["print"] if commands["print"]
+
+    set = commands["set_player"]
+
+    set.each do |cmd|
+      key_val = cmd.to_a[0]
+      ap key_val
+      ap @player.room_id
+      if cmd.key?("room_id")
+        @player.update_attribute(key_val.first, key_val.second)
+        room = Room.find(key_val.second)
+        load_room(room.x, room.y, room.z)
+        flag_print_location = true if cmd.key?("room_id")
+      else
+        # ...
+      end
+
+    end
+
+    print_location if flag_print_location
+  end
+
   def parse_input(full_command)
     @command = full_command
-    args = full_command.split(/ /)
+    args = full_command.split(" ")
     command = args.shift
     text = args.join(' ')
 
@@ -14,15 +40,16 @@ module GameCommands
     if room_custom.present?
       if room_custom.command_text.include?(full_command) or room_custom.synonym_commands.include?(full_command)
         result = World::Manager.run_custom_code(room_custom.code, @player)
-        print_hold result["output"]
 
-        events = result["events"]
-        # ... process events, if any
-        if events.present?
-          events.each do |event|
-            
-          end
-        end
+        process_response_commands(result)
+
+#        events = result["events"]
+#        # ... process events, if any
+#        if events.present?
+#          events.each do |event|
+#            
+#          end
+#        end
         return
       end
     end
@@ -226,8 +253,9 @@ module GameCommands
       player: @player,
       sender_type: Event.sender_type[:player]
     }))
-    # Maybe rewrite the previous line to say:  Aaron says, "Hello everyone."
+    # Maybe rewrite the previous line to say:  You say, "Hello everyone."
     #print "Everyone in the room heard you."
 	end
+
 
 end

@@ -51,23 +51,24 @@ module World
     def self.run_custom_code(code, player)
       s = TCPSocket.new 'localhost', 2200
       payload = self.build_payload(player)
-      ap payload
-      s.puts "payload = " + payload.to_json + "\r\n"
+      s.puts "payload = #{payload}\r\n"
       s.puts code + "\r\nEND"
       response = ""
       while line = s.gets
         response = response + line
       end
       s.close
-      JSON.parse(response)
+      ap response
+      JSON.parse(response) if response.present?
     end
 
     def self.build_payload(player)
-      {
+      payload = {
         player: player,
         room: player.room,
         user: player.user
       }
+      payload.to_json.gsub("null", "nil")
     end
 
 
