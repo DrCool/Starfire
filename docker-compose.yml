@@ -1,0 +1,21 @@
+services:
+  app:
+    depends_on:
+      - code_runner
+    ports:
+      - "2000:2000"
+    build: .
+    container_name: ruby_server
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock  # Mount the host's Docker socket
+    working_dir: /app
+    command: ruby ./lib/server.rb
+    #restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  code_runner:
+    build: ./code-runner
+    ports:
+      - "4567:4567"
+    volumes:
+      - ./code-runner:/app

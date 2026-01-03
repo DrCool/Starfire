@@ -10,14 +10,27 @@ require_relative '../model/prop'
 require_relative '../model/creature'
 require_relative '../model/custom_command'
 require_relative '../model/creature_instance'
+require_relative '../model/ship'
 require_relative './world'
 require_relative './game_commands'
 
+require 'sorted_set'
 require 'pastel'
 require 'bcrypt'
 require 'workers'
 require 'tribe'
 require 'activerecord-import'
+
+# Telnet negotiation constants
+IAC  = 255
+DO   = 253
+WILL = 251
+SB   = 250
+SE   = 240
+
+TELOPT_SGA  = 3
+TELOPT_ECHO = 1
+TELOPT_NAWS = 31
 
 # perl-like text string formatting gem
 # https://www.rubydoc.info/gems/formatr/1.10.1/FormatR
@@ -61,6 +74,7 @@ class Lands
   end
 
   def connect_db
+    puts "connect_db()"
     config = {
       adapter: 'mysql2',
       host: 'localhost',
@@ -77,6 +91,133 @@ class Lands
     #end
   end
 
+  # Read and discard up to `max_bytes` that are already available on the socket.
+  # This is used to consume telnet negotiation responses so they don't leak into gameplay input.
+  def telnet_drain(max_bytes:, timeout: 0.1)
+    return if @client.nil?
+
+    deadline = Time.now + timeout
+    remaining_to_discard = max_bytes
+
+    while remaining_to_discard > 0
+      remaining_time = deadline - Time.now
+      break if remaining_time <= 0
+
+      readable, = IO.select([@client], nil, nil, remaining_time)
+      break if readable.nil?
+
+      begin
+        chunk = @client.read_nonblock([remaining_to_discard, 4096].min)
+      rescue IO::WaitReadable
+        break
+      rescue EOFError
+        break
+      end
+
+      remaining_to_discard -= chunk.bytesize
+    end
+  end
+
+  # Read and return any bytes currently available (non-blocking) up to `max_bytes_total`.
+  def telnet_read_available(max_bytes_total: 8192, timeout: 0.1)
+    return "" if @client.nil?
+
+    buf = +""
+    deadline = Time.now + timeout
+
+    while buf.bytesize < max_bytes_total
+      remaining_time = deadline - Time.now
+      break if remaining_time <= 0
+
+      readable, = IO.select([@client], nil, nil, remaining_time)
+      break if readable.nil?
+
+      begin
+        chunk = @client.read_nonblock([max_bytes_total - buf.bytesize, 4096].min)
+      rescue IO::WaitReadable
+        break
+      rescue EOFError
+        break
+      end
+
+      buf << chunk
+    end
+
+    buf
+  end
+
+  # Parse NAWS (Negotiate About Window Size) from telnet bytes.
+  # Expected pattern: IAC SB NAWS <w1><w2><h1><h2> IAC SE
+  # This parser only looks at bytes you already read; it does not read from the socket.
+  def telnet_parse_naws!(data)
+    return if data.nil? || data.empty?
+
+    bytes = data.bytes
+    i = 0
+    while i + 8 <= bytes.length
+      # Look for: IAC SB NAWS
+      if bytes[i] == IAC && bytes[i + 1] == SB && bytes[i + 2] == TELOPT_NAWS
+        # Need at least 4 size bytes + IAC SE
+        w1 = bytes[i + 3]
+        w2 = bytes[i + 4]
+        h1 = bytes[i + 5]
+        h2 = bytes[i + 6]
+        # Validate terminator
+        if bytes[i + 7] == IAC && bytes[i + 8] == SE
+          cols = (w1 << 8) + w2
+          rows = (h1 << 8) + h2
+
+          # Keep sane defaults if a client reports 0.
+          cols = 80 if cols <= 0
+          rows = 24 if rows <= 0
+
+          @screen_params ||= {}
+          @screen_params[:cols] = cols
+          @screen_params[:rows] = rows
+
+          i += 9
+          next
+        end
+      end
+      i += 1
+    end
+  end
+
+  # Telnet negotiation: keeps your exact existing behavior (SGA + ECHO),
+  # and adds a NAWS request. Any negotiation responses are consumed so they
+  # don't appear as weird characters later.
+  def telnet_negotiate!
+    @screen_params ||= { rows: 24, cols: 80 }
+
+    # --- EXACT SAME AS YOUR CURRENT NEGOTIATION ---
+    # Send IAC DO SGA - IAC WILL SGA
+    print_hold "\xff\xfd\x03\xff\xfb\x03"
+    # Consume up to the same 6 bytes you currently ignore, but without risking an indefinite block.
+    telnet_drain(max_bytes: 6, timeout: 0.1)
+
+    # Send IAC WILL ECHO
+    print_hold "\xff\xfb\x01"
+    # Consume up to the same 3 bytes you currently ignore.
+    telnet_drain(max_bytes: 3, timeout: 0.1)
+
+    # --- ADD NAWS SUPPORT (requested terminal size) ---
+    # Send IAC DO NAWS
+    print_hold [IAC, DO, TELOPT_NAWS].pack('C*')
+
+    # Read whatever the client immediately sends back (WILL NAWS and possibly SB NAWS ...)
+    # and parse NAWS if present. Also consumes these bytes so they won't interfere with your input.
+    naws_bytes = telnet_read_available(timeout: 0.1)
+    telnet_parse_naws!(naws_bytes)
+  end
+
+  def term_cols
+    (@screen_params && @screen_params[:cols]) || 80
+  end
+
+  def term_rows
+    (@screen_params && @screen_params[:rows]) || 24
+  end
+
   def start_game(client)
     @client = client
     show_cursor
@@ -87,13 +228,8 @@ class Lands
     print "Welcome, #{@player.name}!\n"
     Thread.current[:op].set_player(@player)
 
-    # Send IAC DO SGA - IAC WILL SGA (SGA = Suppress Go-Ahead signal)
-    print_hold "\xff\xfd\x03\xff\xfb\x03" # the client will send typed characters immediately instead of when the user hits enter
-    6.times { @client.getc } # get client response to IAC codes and ignore
-
-    # Send IAC WILL ECHO (client will not display characters typed in terminal, this program will echo their characters back to them instead)
-    print_hold "\xff\xfb\x01"
-    3.times { @client.getc } # get client response to IAC codes and ignore
+    # Negotiate telnet options (keeps existing SGA+ECHO behavior, plus NAWS for terminal size)
+    telnet_negotiate!
 
     load_room
     World::Manager.room_event(Event.new({
@@ -176,6 +312,7 @@ class Lands
     user.logged_in = true
     user.current_login_at = Time.now
     user.login_count = 1
+    user.email = ""
     user.save
 
     player_character = PlayerCharacter.new
@@ -195,7 +332,7 @@ class Lands
   def print(text)
     return if text.nil?
     begin
-      @client.puts(text + "\r")
+      @client.puts(word_wrap(text) + "\r")
     rescue IOError
       World::Manager.logout_player(@player)
       Thread.current.exit
@@ -204,7 +341,7 @@ class Lands
   def self.print(text)
     return if text.nil?
     begin
-      @client.puts(text + "\r")
+      @client.puts(word_wrap(text) + "\r")
     rescue IOError
       World::Manager.logout_player(@player)
       Thread.current.exit
@@ -357,7 +494,7 @@ class Lands
       return KEY.ENTER if char.ord == 13
       return KEY.ESC if char == "\e"
       return KEY.UP if char == "\e[A"
-      return KEY.DOWN if char == "\e[B"      
+      return KEY.DOWN if char == "\e[B"
       return KEY.LEFT if char == "\e[D"
       return KEY.RIGHT if char == "\e[C"
     end
@@ -374,7 +511,7 @@ class Lands
       key = KEY.ENTER if key.ord == 13
       key = KEY.ESC if key == "\e"
       key = KEY.UP if key == "\e[A"
-      key = KEY.DOWN if key == "\e[B"      
+      key = KEY.DOWN if key == "\e[B"
       key = KEY.LEFT if key == "\e[D"
       key = KEY.RIGHT if key == "\e[C"
       key = KEY.DELETE if key == "\x7F"
@@ -388,7 +525,7 @@ class Lands
         sel_index = data.length-1 if sel_index < 0
       elsif key == KEY.ENTER
         if data[sel_index][:type] == FIELD_TYPE_CANCEL
-          cancel = true 
+          cancel = true
         elsif data[sel_index][:type] == FIELD_TYPE_SAVE
           save = true
         else
@@ -669,15 +806,17 @@ class Lands
     @room_saying_thread = Thread.new do
       index = 0
       loop do
-        sleep 5
-        if @room_sayings.count > 0 and not @client_thread.nil?
+        sleep 6
+        # if @room_sayings.count > 0 and not @client_thread.nil?
+        if @room_sayings.count > 0
           client_thread[:q] << @room_sayings[index].text
           index += 1
           index = 0 if index > @room_sayings.count - 1
         else
           index = 0
         end
-        sleep 5
+        sleep_duration = rand(20..70)
+        sleep sleep_duration
       end
     end
   end
@@ -776,7 +915,7 @@ class Lands
     vector = World::Manager.dir_list.find { |e| e.has_key?(dir.to_sym) }.values.first
     # vector returns a hash like:  {:x=>1, :y=>0, :z=>0}
 
-    World::Manager.room_event(Event.new({ 
+    World::Manager.room_event(Event.new({
       action: ACTION_EXIT_ROOM,
       room: @room,
       message: "#{@player.name} went #{vector[:to_dir]}.",
@@ -790,8 +929,16 @@ class Lands
     @player.z = @player.z + vector[:z]
 
     load_room
+    if @room.nil?
+      print "You can't go that way."
+      # Return player to previous location
+      @player.x = @player.x - vector[:x]
+      @player.y = @player.y - vector[:y]
+      @player.z = @player.z - vector[:z]
+      load_room
+    end
 
-    World::Manager.room_event(Event.new({ 
+    World::Manager.room_event(Event.new({
       action: ACTION_ENTER_ROOM,
       room: @room,
       message: "#{@player.name} entered from #{vector[:from_dir]}.",
@@ -856,7 +1003,7 @@ class Lands
       room.created_by = @player.user.id
       room.description = "You're in an empty space.\n\rType '" + $pastel.bright_yellow("desc") + "' to create a room description. Type '" + $pastel.bright_yellow("room-say") + "' to create room sayings."
       room.save
- 
+
       load_room
       print_location
     end
@@ -903,6 +1050,48 @@ class Lands
     load_room
   end
 
+  def board_ship
+    ap Ship.first
+    ap player.room
+    ship = Ship.where(is_automated: true).find { |s| s.docked_at_room?(player.room) }
+    if ship.nil?
+      print "There is no ship to board here."
+      return
+    end
+
+    home_room_id = ship.home_room_id
+    room = Room.find_by(id: home_room_id)
+
+    # transport player to ship's interior room
+    transport_user(room.x, room.y, room.z,
+      "#{@player.name} boarded the #{ship.name}.",
+      "#{@player.name} boarded the #{ship.name}.")
+  end
+
+  def leave_ship
+    # Is user in a ship?
+    ship = Ship.where(is_automated: true).find { |s| s.home_room_id == @room.id }
+    if ship.nil?
+      print "You are not on a ship."
+      return
+    end
+
+    # is ship in transit?
+    if ship.state == 'in_transit'
+      print "You cannot leave the ship while it is in transit."
+      return
+    end
+
+    dock_room_id = ship.dock_room_id
+    room = Room.find_by(id: dock_room_id)
+
+    # transport player to docking room
+    transport_user(room.x, room.y, room.z,
+                   "#{@player.name} left the #{ship.name}.",
+                   "#{@player.name} entered from the #{ship.name}.")
+  end
+
+
   def desc(phrase)
     @room.description = phrase
     @room.save
@@ -930,10 +1119,94 @@ class Lands
 
   end
 
-  def print_location
+  def word_wrap(text, cols: nil, indent: 0)
+    return "" if text.nil?
+
+    # Determine width from player screen params
+    cols ||= begin
+               sp = @screen_params
+               (sp && sp[:cols]).to_i
+             rescue StandardError
+               0
+             end
+    cols = 80 if cols <= 0
+
+    indent = indent.to_i
+    indent = 0 if indent < 0
+
+    out = []
+
+    # split on \n or \r\n, preserve blank lines
+    text.to_s.split(/\r?\n/, -1).each do |raw_line|
+      # Preserve any leading spaces already present in the line (important for formatting)
+      leading = raw_line[/\A[ \t]*/] || ""
+      content = raw_line.sub(/\A[ \t]*/, "")
+
+      # Preserve intentional blank lines exactly
+      if content.empty? && !leading.empty?
+        out << raw_line
+        next
+      end
+      if (leading + content).strip.empty?
+        out << raw_line
+        next
+      end
+
+      line_indent = indent + leading.length
+      line_prefix = " " * line_indent
+
+      # Recompute usable width for this line with its leading spaces
+      line_usable = cols - line_indent
+      line_usable = 10 if line_usable < 10
+
+      # If the line already fits, keep it exactly (including multiple spaces)
+      if content.length <= line_usable
+        out << (line_prefix + content.rstrip)
+        next
+      end
+
+      # Wrap while preserving *all* internal spacing.
+      remaining = content.rstrip
+      while remaining.length > line_usable
+        # Find the last space within the usable width to break on.
+        break_at = nil
+        window = remaining[0, line_usable]
+        idx = window.rindex(" ")
+        if idx
+          break_at = idx
+        end
+
+        if break_at && break_at > 0
+          # Keep the segment exactly; drop the single break space, but keep any additional spaces
+          segment = remaining[0, break_at]
+          out << (line_prefix + segment.rstrip)
+
+          # Remove the break space only (not all whitespace)
+          remaining = remaining[(break_at + 1)..-1] || ""
+          # If the next line begins with spaces, keep them (they count against width)
+        else
+          # No spaces to break on; hard-wrap
+          out << (line_prefix + remaining[0, line_usable])
+          remaining = remaining[line_usable..-1] || ""
+        end
+      end
+
+      out << (line_prefix + remaining) unless remaining.empty?
+    end
+
+    # IMPORTANT: telnet-friendly line endings
+    out.join("\r\n")
+  end
+
+  def print_location(verbose: false)
     exit_list = "none"
+    puts @screen_params
     print $pastel.bright_white.on_blue(" " + @room.name + " ") if @room.name.present?
-    print @room.description
+    if !verbose
+      print @room.description
+    else
+      print @room.verbose_description
+    end
 
     if @room.exits.present?
       exit_list = @room.exits.split('').join(', ')
@@ -952,16 +1225,30 @@ class Lands
       end
     end
 
+    # Ships docked in room
+    ships = Ship.where(is_automated: true).select { |s| s.docked_at_room?(@room) }
+    if ships.present?
+      ship_names = ships.map { |s| $pastel.bright_red(s.name) }
+      ship_line =
+        if ship_names.length == 1
+          "#{ship_names.first} is docked here."
+        else
+          "#{ship_names[0..-2].join(', ')} and #{ship_names.last} are docked here."
+        end
+      print ship_line
+    end
+
     # NPCs in room
     npcs = @room.npc
     if npcs.present?
-      npcs.each_with_index do |npc, i|
-        print_hold $pastel.bright_yellow(npc.npc_name)
-        print_hold ", " if npcs.count > 1 and i < npcs.count - 2
-        print_hold " and " if npcs.count > 1 and i == npcs.count - 2
-      end
-      print " is here." if npcs.count == 1
-      print " are here." if npcs.count > 1
+      names = npcs.map { |n| $pastel.bright_yellow(n.npc_name) }
+      line =
+        if names.length == 1
+          "#{names.first} is here."
+        else
+          "#{names[0..-2].join(', ')} and #{names.last} are here."
+        end
+      print line
     end
 
     # Creatures in room
@@ -969,14 +1256,14 @@ class Lands
     puts "CREATURES IN ROOM:"
     ap creatures
     if creatures.present?
-      print_hold "There is "
-      creatures.each_with_index do |instance, i|
-        print_hold vanna(instance.creature_name)
-        print_hold ", " if creatures.count > 1 and i < creatures.count - 2
-        print_hold " and " if creatures.count > 1 and i == creatures.count - 2
-      end
-      print " here." if creatures.count == 1
-      print " here." if creatures.count > 1
+      names = creatures.map { |c| vanna(c.creature_name) }
+      line =
+        if names.length == 1
+          "There is #{names.first} here."
+        else
+          "There are #{names[0..-2].join(', ')} and #{names.last} here."
+        end
+      print line
     end
   end
 
@@ -984,24 +1271,37 @@ class Lands
   def vanna(text)
     # Is the first letter a vowel?
     return_val = text[0] =~ /[aeiouAEIOU]/ ? "an " : "a "
-    return return_val + text
+    return_val + text
   end
 
   def get_screen_size
-    # send IAC codes to move cursor to col/row 9999/9999, then ask client where the cursor actually is. This is the terminal window size.
-    print_hold "\0337\033[r\033[9999;9999H" + "\033[6n"
-    puts "Screen Size:"
-    response_code = ""
-    while true
-      d = @client.getc
-      break if d == "R"
-      response_code += d
+    # ANSI fallback: move cursor far right/down then ask terminal for cursor position.
+    # Some telnet clients won't support this; NAWS (if present) is preferred.
+    begin
+      print_hold "\0337\033[r\033[9999;9999H" + "\033[6n"
+      response_code = ""
+      while true
+        d = @client.getc
+        break if d == "R" || d.nil?
+        response_code += d
+      end
+
+      if response_code.start_with?("\e[")
+        size = response_code[2..-1].split(";")
+        rows = size.first.to_i
+        cols = size.second.to_i
+
+        if rows > 0 && cols > 0
+          @screen_params ||= {}
+          @screen_params[:rows] = rows
+          @screen_params[:cols] = cols
+        end
+      end
+    rescue StandardError
+      # ignore and keep existing @screen_params (possibly from NAWS)
     end
-    size = response_code[2..-1].split(";")
-    @screen_params = {
-      rows: size.first.to_i,
-      cols: size.second.to_i
-    }
+
+    @screen_params ||= { rows: 24, cols: 80 }
     @screen_params
   end
 
@@ -1104,7 +1404,7 @@ class Lands
     result = players.find do |player|
       player.name.downcase.include? name.downcase
     end
-    return { entity: result, type: :player } if result.present?
+    { entity: result, type: :player } if result.present?
   end
 end
 

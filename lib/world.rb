@@ -46,29 +46,66 @@ module World
     end
   end
 
+  require 'net/http'
+  require 'uri'
+  require 'json'
 
-  class Manager
-    def self.run_custom_code(code, player)
-      s = TCPSocket.new 'localhost', 2200
-      payload = self.build_payload(player)
-      s.puts "payload = #{payload}\r\n"
-      s.puts code + "\r\nEND"
-      response = ""
-      while line = s.gets
-        response = response + line
-      end
-      s.close
-      ap response
-      JSON.parse(response) if response.present?
+  class SandboxClient
+    # The host is the Docker Compose service name of the code-runner container.
+    # When using Docker Compose, services can reach each other by name.
+    #def initialize(host: 'host.docker.internal', port: 4567)
+    def initialize(host: 'localhost', port: 2200)
+      @host = host
+      @port = port
     end
 
-    def self.build_payload(player)
-      payload = {
+    def execute(payload, timeout: 3)
+      msg = { payload: payload, timeout: timeout }.to_json + "\r\nEND"
+
+      socket = TCPSocket.new(@host, @port)
+      socket.write(msg)
+      socket.close_write
+
+      response = socket.read
+      puts response
+      JSON.parse(response)
+    ensure
+      socket&.close
+    end
+  end
+
+  class Manager
+    @client = SandboxClient.new
+    def self.run_custom_code(code, player)
+      payload = self.build_payload(player, code)
+      response = @client.execute(payload)
+      ap response
+      ap "-----"
+      response
+    end
+
+    # def self.run_custom_code_old(code, player)
+    #   #s = TCPSocket.new 'localhost', 2200 # use this when server is running in local environment
+    #   s = TCPSocket.new 'lands-code-runner', 2200 # use this when server is in a Docker container
+    #   payload = self.build_payload(player)
+    #   s.puts "payload = #{payload}\r\n"
+    #   s.puts code + "\r\nEND"
+    #   response = ""
+    #   while line = s.gets
+    #     response = response + line
+    #   end
+    #   s.close
+    #   ap response
+    #   JSON.parse(response) if response.present?
+    # end
+
+    def self.build_payload(player, code)
+      {
         player: player,
         room: player.room,
-        user: player.user
+        user: player.user,
+        code: code
       }
-      payload.to_json.gsub("null", "nil")
     end
 
 
@@ -81,6 +118,7 @@ module World
     end
 
     def self.logout_all_players
+
       players = PlayerCharacter.where(logged_in: true).all
       pp = []
       players.each do |player|
@@ -121,6 +159,7 @@ module World
       # TIP: Do NOT use "room = event.room" as this caused a big problem earlier when creatures died and then
       # the room_event tried to send a notification to the creature that died and was already destroyed.
       room = Room.find(room_id)
+
       room.creature_instances.each {|creature| creature.process_event(event) }
       room.npc.each {|npc| npc.process_event(event) }
     end
@@ -140,8 +179,8 @@ module World
         { s: {x:  0, y:  1, z:  0, from_dir: "the north", to_dir: "south", to_dir_verbose: "to the south" } },
         { w: {x: -1, y:  0, z:  0, from_dir: "the east",  to_dir: "west",  to_dir_verbose: "to the west"  } },
         { e: {x:  1, y:  0, z:  0, from_dir: "the west",  to_dir: "east",  to_dir_verbose: "to the east"  } },
-        { u: {x:  0, y:  0, z: -1, from_dir: "below",     to_dir: "up",    to_dir_verbose: "above"        } },
-        { d: {x:  0, y:  0, z:  1, from_dir: "above",     to_dir: "down",  to_dir_verbose: "below"        } },
+        { u: {x:  0, y:  0, z: -1, from_dir: "below",     to_dir: "up",    to_dir_verbose: "up"           } },
+        { d: {x:  0, y:  0, z:  1, from_dir: "above",     to_dir: "down",  to_dir_verbose: "down"         } },
       ]
     end
 

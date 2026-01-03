@@ -34,14 +34,29 @@ module GameCommands
 
     puts command
 
+    # Process the simple one-letter commands first so they don't accidentally match a custom room command
+    case command
+      when "n", "s", "w", "e", "u", "d"
+        dir command
+        return
+    end
+
     # Check if custom command is available from the room, an object, or an NPC.
     # This should be done first so it can override anything below.
-    room_custom = CustomCommand.where(codable_type: "Room").where(codable_id: @room.id).first # check for custom room command
+
+    room_custom = CustomCommand.where(codable_type: "Room").where(codable_id: @room.id).where(is_active: true).first # check for custom room command
     if room_custom.present?
       if room_custom.command_text.include?(full_command) or room_custom.synonym_commands.include?(full_command)
         result = World::Manager.run_custom_code(room_custom.code, @player)
+        puts "Result of running custom code:"
+        p result
 
-        process_response_commands(result)
+        if result['error']
+          print "Command not understood."
+          print "Error: #{result['error']}"
+        else
+          process_response_commands(result["result"])
+        end
 
 #        events = result["events"]
 #        # ... process events, if any
@@ -58,9 +73,6 @@ module GameCommands
     # .....
 
     case command
-      when "n", "s", "w", "e", "u", "d"
-        dir command
-        return
       when "quit"
         @message_thread.exit
         quit
@@ -130,11 +142,17 @@ module GameCommands
         room_say text
         return
       when "look"
-        print_location
+        print_location(verbose: true)
         return
       when "desc"
         return if text == ""
         desc text
+        return
+      when "board"
+        board_ship
+        return
+      when "leave"
+        leave_ship
         return
       when "reload"
         load "#{File.dirname(__FILE__)}/lands.rb"

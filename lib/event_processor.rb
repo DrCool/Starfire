@@ -1,4 +1,23 @@
 module World
+  class ShipMover
+    def initialize(ships)
+    end
+
+    def process_queue
+      # Re-query each tick so newly-created ships are included and deleted ships aren't retained.
+      Ship.where(is_automated: true).find_each do |ship|
+        begin
+          ship.reload
+          ship.update_status
+        rescue => e
+          # Don't let one bad ship kill the mover thread
+          warn "[ShipMover] ship_id=#{ship.id} error=#{e.class}: #{e.message}"
+        end
+      end
+    end
+  end
+
+
   class EventProcessor
     EVENT_SPAWN_TIMER = 0
 

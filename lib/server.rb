@@ -13,11 +13,14 @@
 #        | Modernized starting in December 2021   |
 #        +----------------------------------------+
 
-$LOAD_PATH << '.'
+
+$LOAD_PATH.unshift(File.expand_path('../lib', __dir__)) unless $LOAD_PATH.include?(File.expand_path('../lib', __dir__))
+
 require 'lands'
 require 'world'
-require '../model/npc'
+require_relative '../model/npc'
 
+require 'ostruct'
 require 'socket'
 require 'fcntl'
 require 'open3'
@@ -28,8 +31,8 @@ require 'db_setup'
 require 'awesome_print'
 require 'active_record'
 require 'active_enum'
-require '../lib/active_enum_defs'
-require '../lib/event_processor'
+require_relative '../lib/active_enum_defs'
+require_relative '../lib/event_processor'
 Thread.abort_on_exception = true
 
 $pastel = Pastel.new
@@ -61,7 +64,7 @@ end
 $online_players = []
 
 class Init
-  ActiveRecord::Base.clear_active_connections!
+  ActiveRecord::Base.connection_pool.flush!
   include World
   World::Manager.logout_all_players
   World::Manager.instantiate_npcs
@@ -76,6 +79,7 @@ class Init
 
   def start
     init_global_creature_respawner
+    init_ship_mover
     #start_docker_container
 
     server = TCPServer.open(2000)
@@ -121,13 +125,32 @@ class Init
     end
   end
 
+  def init_ship_mover
+    puts "Starting ship mover"
+    # Load all ships from Ship model
+    ships = Ship.all.where(is_automated: true)
+
+    # Start global ShipMover for moving autonomous ships like the Dalcrynn
+    $mover = World::ShipMover.new(ships)
+    Thread.new do
+      ActiveRecord::Base.connection_pool.with_connection do
+        loop do
+          sleep 1
+          $mover.process_queue
+        end
+      end
+    end
+  end
+
   def start_docker_container
     puts "Starting RubyRemote Server"
-    # This starts the docker container "ruby-server", listening on port 2200
+    # This starts the docker container "lands-code-runner", listening on port 2200
 
     @ruby_server_thread = Thread.new do
-      result = system( "docker run --read-only -it -p 2200:2200 ruby-server" )
-      puts "RubyRemote server running: #{result}"
+      ENV['DOCKER_HOST'] = 'tcp://docker:2375'
+      #result = system("docker run --read-only -d --network=lands-server_default -p 2200:2200 --name lands-code-runner lands-code-runner")
+      result = system("docker compose run --read-only -d --network=lands-server_default -p 2200:2200 --name lands-code-runner lands-code-runner")
+      puts "Started container: #{result}"
     end
   end
 

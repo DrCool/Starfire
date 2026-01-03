@@ -23,6 +23,19 @@ class NPC < ActiveRecord::Base
   def load_sayings
     if self.room
       @sayings = NPCSaying.where(npc_id: self.id, only_in_x: self.room.x, only_in_y: self.room.y, only_in_z: self.room.z).pluck(:text)
+
+      # iterate through each saying.text and replace any [yellow] with $pastel.yellow or return to normal color with [/yellow]
+      @sayings.map! do |saying|
+        saying.gsub(/\[([a-zA-Z0-9_]+)\](.*?)\[\/\1\]/m) do
+          style = Regexp.last_match(1).to_sym
+          content = Regexp.last_match(2)
+          if $pastel.respond_to?(style)
+            $pastel.public_send(style, content)
+          else
+            content
+          end
+        end
+      end
     end
   end
 
@@ -48,7 +61,8 @@ class NPC < ActiveRecord::Base
   end
 
   def begin_saying_timer
-    timer!(8, :timer, "saying") if $0 != "irb"
+    delay = 11 + rand(0..10)
+    timer!(delay, :timer, "saying") if $0 != "irb"
   end
 
   def begin_movement_timer(interval)
@@ -95,7 +109,7 @@ class NPC < ActiveRecord::Base
       World::Manager.room_event(Event.new({
         action: ACTION_EXIT_ROOM,
         room: self.room,
-        message: "#{self.npc_name} went #{vector[:to_dir]}.",
+        message: $pastel.bright_yellow(self.npc_name) + " went #{vector[:to_dir]}.",
         data: vector, npc: self,
         sender_type: SENDER_TYPE_NPC
       }))
@@ -111,7 +125,7 @@ class NPC < ActiveRecord::Base
       World::Manager.room_event(Event.new({
         action: ACTION_ENTER_ROOM,
         room: new_room,
-        message: "#{self.npc_name} entered from #{vector[:from_dir]}.",
+        message: $pastel.bright_yellow(self.npc_name) + " entered from #{vector[:from_dir]}.",
         data: vector,
         npc: self,
         sender_type: SENDER_TYPE_NPC
