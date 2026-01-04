@@ -138,7 +138,7 @@ class Ship < ActiveRecord::Base
         self.departed_at = nil
 
         # Announce to destination dock + ship interior
-        emit_room_literal(dest_stop[:dock_room_id], $pastel.bright_red(ship_name) + " arrives from #{stop_label(from_stop)}.")
+        emit_room_literal(dest_stop[:dock_room_id], $pastel.bright_red(ship_name) + " arrives from #{stop_label(from_stop)}.\n")
         emit_room_literal(dest_stop[:dock_room_id], $pastel.bright_red(ship_name) + " is docked for #{dock_seconds} seconds. Type 'board ship' to board.")
         emit_ship_literal($pastel.bright_red(ship_name) + " docks at #{stop_label(dest_stop)}.")
       else

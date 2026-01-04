@@ -66,7 +66,8 @@ class PlayerCharacter < ActiveRecord::Base
 
   def receive_attack(event, overprint)
   	data = event.data
-  	overprint.call "#{event.data[:attacker].article.capitalize}#{data[:attacker_name]} hit you for #{data[:damage]} damage!"
+    attack_verb = data[:attack_verb] || "hit"
+  	overprint.call "#{event.data[:attacker].article.capitalize}#{data[:attacker_name]} #{attack_verb} you for #{data[:damage]} damage!"
   	self.hp = self.hp - data[:damage]
   	self.save
   	died(data) if self.hp <= 0

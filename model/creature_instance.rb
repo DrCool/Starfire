@@ -63,7 +63,7 @@ class CreatureInstance < ActiveRecord::Base
         action: ACTION_HIT,
         room: self.room,
         creature: self,
-        data: { attacker: self, attacker_name: self.creature.name, recipient: recipient, recipient_name: recipient.name, damage: damage },
+        data: { attacker: self, attacker_name: self.creature.name, attack_verb: self.creature.attack_verb, recipient: recipient, recipient_name: recipient.name, damage: damage },
         sender_type: SENDER_TYPE_CREATURE
       }))
     else

@@ -826,7 +826,7 @@ class Lands
     if messages.present? and messages.count > 0
       client_thread[:q] = [] # reset the message queue
       @client.print "\e[2K\r" # erase current line
-      messages.each { |msg| @client.puts msg + "\r" }
+      messages.each { |msg| @client.puts msg + "\r\n" }
       show_prompt
       @client.print @input
     end
@@ -880,7 +880,7 @@ class Lands
         overprint event.data[:attacker_name] + " killed " + event.data[:recipient_def_article] + event.data[:recipient_name] + "."
       end
       if event.data[:attacker_name] == @player.name
-        overprint "You killed #{event.data[:recipient_def_article]}#{event.data[:recipient_name]}."
+        overprint $pastel.cyan("You ") + $pastel.bright_red("killed") + $pastel.cyan(" #{event.data[:recipient_def_article]}#{event.data[:recipient_name]}.")
       end
     when ACTION_SAY
       if event.data[:sender_name] != @player.name
@@ -1062,6 +1062,8 @@ class Lands
     home_room_id = ship.home_room_id
     room = Room.find_by(id: home_room_id)
 
+    print "Boarding the #{ship.name}...\n"
+
     # transport player to ship's interior room
     transport_user(room.x, room.y, room.z,
       "#{@player.name} boarded the #{ship.name}.",
@@ -1085,12 +1087,23 @@ class Lands
     dock_room_id = ship.dock_room_id
     room = Room.find_by(id: dock_room_id)
 
+    print "Leaving the #{ship.name}...\n"
+
     # transport player to docking room
     transport_user(room.x, room.y, room.z,
                    "#{@player.name} left the #{ship.name}.",
                    "#{@player.name} entered from the #{ship.name}.")
   end
 
+  def stats
+    print $pastel.bright_white("Character Stats for #{@player.name}")
+    print "Level: #{@player.level}"
+    print "Experience: #{@player.experience}"
+    print "Health: #{@player.hp} / #{@player.hitmax}"
+    print "Strength: #{@player.strength}"
+    print "Dexterity: #{@player.dexterity}"
+    print "Bravery: #{@player.bravery}"
+  end
 
   def desc(phrase)
     @room.description = phrase
@@ -1203,7 +1216,7 @@ class Lands
     puts @screen_params
     print $pastel.bright_white.on_blue(" " + @room.name + " ") if @room.name.present?
     if !verbose
-      print @room.description
+      print @room.description.gsub(/\\n/, "\n")
     else
       print @room.verbose_description
     end

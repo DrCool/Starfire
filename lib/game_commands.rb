@@ -148,6 +148,9 @@ module GameCommands
         return if text == ""
         desc text
         return
+      when "stats"
+        stats
+        return
       when "board"
         board_ship
         return
