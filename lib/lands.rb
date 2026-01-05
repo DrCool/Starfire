@@ -1365,6 +1365,10 @@ class Lands
       else
         "#{names[0..-2].join(', ')} and #{names.last} are #{location_text}."
       end
+
+    # Capitalize first letter
+    line[0] = line[0].upcase
+
     print line
   end
 
