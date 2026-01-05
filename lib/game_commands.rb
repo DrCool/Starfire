@@ -174,6 +174,15 @@ module GameCommands
       when "say"
         say text
         return
+      when "list"
+        list_shop_items
+        return
+      when "buy"
+        buy_item text
+        return
+      when "sell"
+        sell_item text
+        return
       when "wield"
         wield_item text
         return
@@ -301,6 +310,156 @@ module GameCommands
     # Maybe rewrite the previous line to say:  You say, "Hello everyone."
     #print "Everyone in the room heard you."
 	end
+
+  def list_shop_items
+    shop = shop_in_room
+    if shop.nil?
+      print "There is no shop here."
+      return
+    end
+
+    items = ShopInventory.where(shop_id: shop.id).includes(:game_object)
+    if items.empty?
+      print "The shelves are empty."
+      return
+    end
+
+    print "Items for sale:"
+    items.each do |entry|
+      obj = entry.game_object
+      next if obj.nil?
+
+      stock = entry.stock.to_i
+      next if stock <= 0
+
+      print "* #{obj.name} - #{entry.price} credits (#{stock} in stock)"
+    end
+  end
+
+  def buy_item(text)
+    if text.strip == ""
+      print "Buy what?"
+      return
+    end
+
+    shop = shop_in_room
+    if shop.nil?
+      print "There is no shop here."
+      return
+    end
+
+    entry = find_shop_item(shop, text)
+    if entry.nil?
+      print "That item isn't for sale here."
+      return
+    end
+
+    if entry.stock.to_i <= 0
+      print "That item is out of stock."
+      return
+    end
+
+    price = entry.price.to_i
+    if @player.credits.to_i < price
+      print "You don't have enough credits."
+      return
+    end
+
+    obj = entry.game_object
+    if obj.nil?
+      print "That item isn't available."
+      return
+    end
+
+    @player.update!(credits: @player.credits.to_i - price)
+    entry.update!(stock: entry.stock.to_i - 1)
+    add_item_to_player(obj.id, 1)
+    print "You buy #{obj.name}."
+  end
+
+  def sell_item(text)
+    if text.strip == ""
+      print "Sell what?"
+      return
+    end
+
+    shop = shop_in_room
+    if shop.nil?
+      print "There is no shop here."
+      return
+    end
+
+    item = find_player_item(text)
+    if item.nil?
+      print "You aren't carrying that."
+      return
+    end
+
+    obj = item.game_object
+    if obj.nil?
+      print "That item cannot be sold."
+      return
+    end
+
+    credits = obj.sell_price.to_i
+    if credits <= 0
+      print "That item isn't worth anything."
+      return
+    end
+
+    deduct_player_item(item, 1)
+    @player.update!(credits: @player.credits.to_i + credits)
+    restock_shop_item(shop, obj.id)
+    print "You sell #{obj.name}."
+  end
+
+  def shop_in_room
+    return nil unless @room.room_type_id.to_i == 1
+
+    Shop.find_by(room_id: @room.id)
+  end
+
+  def find_shop_item(shop, name)
+    items = ShopInventory.where(shop_id: shop.id).includes(:game_object)
+    items.find do |entry|
+      obj = entry.game_object
+      obj.present? && obj.name.downcase.include?(name.downcase)
+    end
+  end
+
+  def add_item_to_player(object_id, quantity)
+    existing = InventoryItem.where(
+      owner_type: "PlayerCharacter",
+      owner_id: @player.id,
+      object_id: object_id
+    ).first
+
+    if existing.present?
+      existing.update!(quantity: existing.quantity.to_i + quantity)
+    else
+      InventoryItem.create!(
+        owner_type: "PlayerCharacter",
+        owner_id: @player.id,
+        object_id: object_id,
+        quantity: quantity
+      )
+    end
+  end
+
+  def deduct_player_item(item, quantity)
+    remaining = item.quantity.to_i - quantity
+    if remaining > 0
+      item.update!(quantity: remaining)
+    else
+      item.destroy
+    end
+  end
+
+  def restock_shop_item(shop, object_id)
+    entry = ShopInventory.find_or_initialize_by(shop_id: shop.id, object_id: object_id)
+    entry.stock = entry.stock.to_i + 1
+    entry.save!
+  end
 
   def wield_item(text)
     if text.strip == ""
