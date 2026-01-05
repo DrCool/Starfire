@@ -19,6 +19,8 @@ $LOAD_PATH.unshift(File.expand_path('../lib', __dir__)) unless $LOAD_PATH.includ
 require 'lands'
 require 'world'
 require_relative '../model/npc'
+require_relative '../model/shop'
+require_relative '../model/shop_inventory'
 
 require 'ostruct'
 require 'socket'
@@ -80,6 +82,7 @@ class Init
   def start
     init_global_creature_respawner
     init_ship_mover
+    init_shop_restock
     #start_docker_container
 
     server = TCPServer.open(2000)
@@ -138,6 +141,41 @@ class Init
           sleep 1
           $mover.process_queue
         end
+      end
+    end
+  end
+
+  def init_shop_restock
+    puts "Starting shop restocker"
+    Thread.new do
+      ActiveRecord::Base.connection_pool.with_connection do
+        loop do
+          sleep 60
+          restock_shops
+        end
+      end
+    end
+  end
+
+  def restock_shops
+    Shop.find_each do |shop|
+      interval = shop.restock_interval_seconds.to_i
+      interval = 1800 if interval <= 0
+
+      ShopInventory.where(shop_id: shop.id).find_each do |entry|
+        next if entry.stock.to_i >= entry.stock_max.to_i
+
+        last_restock = entry.last_restock_at || Time.at(0)
+        next if Time.now - last_restock < interval
+
+        min = entry.restock_min.to_i
+        max = entry.restock_max.to_i
+        min = 1 if min <= 0
+        max = min if max < min
+
+        amount = rand(min..max)
+        new_stock = [entry.stock.to_i + amount, entry.stock_max.to_i].min
+        entry.update!(stock: new_stock, last_restock_at: Time.now)
       end
     end
   end
