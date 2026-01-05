@@ -6,6 +6,7 @@ class PlayerCharacter < ActiveRecord::Base
 
 	belongs_to :room
 	belongs_to :user
+  has_many :inventory_items, -> { where owner_type: "PlayerCharacter" }, foreign_key: :owner_id
 
 
   def article
@@ -99,4 +100,3 @@ class PlayerCharacter < ActiveRecord::Base
   end
 
 end
-

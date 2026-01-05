@@ -7,7 +7,9 @@ class CreatureInstance < ActiveRecord::Base
 
   belongs_to :creature
   belongs_to :room
+  has_many :inventory_items, -> { where owner_type: "CreatureInstance" }, foreign_key: :owner_id
   after_initialize :after_initialize
+  after_create :assign_spawn_loot
   @event_q = []
 
   def after_initialize
@@ -84,6 +86,7 @@ class CreatureInstance < ActiveRecord::Base
   def died(event)
     room = Room.find(self.room.id)
     id = self.creature.id
+    create_corpse_for_room(room)
     World::Manager.room_event(Event.new({
       action: ACTION_DIE,
       room: room,
@@ -96,6 +99,44 @@ class CreatureInstance < ActiveRecord::Base
 
 
   private
+
+  def assign_spawn_loot
+    loot_rows = CreatureLoot.where(creature_id: creature_id)
+    loot_rows.each do |loot|
+      next unless loot_drop?(loot.drop_chance)
+
+      quantity = rand(loot.min_quantity..loot.max_quantity)
+      next if quantity <= 0
+
+      InventoryItem.create!(
+        owner_type: "CreatureInstance",
+        owner_id: id,
+        object_id: loot.object_id,
+        quantity: quantity
+      )
+    end
+  end
+
+  def loot_drop?(drop_chance)
+    chance = drop_chance.to_f
+    return true if chance >= 1
+    return false if chance <= 0
+
+    rand < chance
+  end
+
+  def create_corpse_for_room(room)
+    corpse = Corpse.create!(
+      room_id: room.id,
+      creature_instance_id: id,
+      credits: credits.to_i,
+      expires_at: 60.seconds.from_now
+    )
+
+    InventoryItem.where(owner_type: "CreatureInstance", owner_id: id).find_each do |item|
+      item.update!(owner_type: "Corpse", owner_id: corpse.id)
+    end
+  end
 
   def on_timer(event)
   end
