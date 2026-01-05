@@ -174,6 +174,18 @@ module GameCommands
       when "say"
         say text
         return
+      when "wield"
+        wield_item text
+        return
+      when "unwield"
+        unwield_item
+        return
+      when "wear"
+        wear_item text
+        return
+      when "remove"
+        remove_item text
+        return
       when "get"
         get_item text
         return
@@ -289,6 +301,103 @@ module GameCommands
     # Maybe rewrite the previous line to say:  You say, "Hello everyone."
     #print "Everyone in the room heard you."
 	end
+
+  def wield_item(text)
+    if text.strip == ""
+      print "Wield what?"
+      return
+    end
+
+    item = find_player_item(text)
+    if item.nil?
+      print "You aren't carrying that."
+      return
+    end
+
+    obj = item.game_object
+    if obj.nil? || obj.item_type != "weapon"
+      print "You can't wield that."
+      return
+    end
+
+    required_level = obj.required_level.to_i
+    if required_level > 0 && @player.level.to_i < required_level
+      print "You are not experienced enough to wield that."
+      return
+    end
+
+    equip_item("weapon", obj)
+    print "You wield the #{obj.name}."
+  end
+
+  def unwield_item
+    entry = PlayerEquipment.find_by(player_character_id: @player.id, slot: "weapon")
+    if entry.nil?
+      print "You aren't wielding a weapon."
+      return
+    end
+
+    entry.destroy
+    print "You lower your weapon."
+  end
+
+  def wear_item(text)
+    if text.strip == ""
+      print "Wear what?"
+      return
+    end
+
+    item = find_player_item(text)
+    if item.nil?
+      print "You aren't carrying that."
+      return
+    end
+
+    obj = item.game_object
+    if obj.nil? || obj.item_type != "armor"
+      print "You can't wear that."
+      return
+    end
+
+    if obj.slot.present? && obj.slot != "torso"
+      print "You can't wear that on your torso."
+      return
+    end
+
+    required_level = obj.required_level.to_i
+    if required_level > 0 && @player.level.to_i < required_level
+      print "You are not experienced enough to wear that."
+      return
+    end
+
+    equip_item("torso", obj)
+    print "You wear the #{obj.name}."
+  end
+
+  def remove_item(_text)
+    entry = PlayerEquipment.find_by(player_character_id: @player.id, slot: "torso")
+    if entry.nil?
+      print "You aren't wearing any torso armor."
+      return
+    end
+
+    entry.destroy
+    print "You remove your torso armor."
+  end
+
+  def equip_item(slot, obj)
+    entry = PlayerEquipment.find_or_initialize_by(player_character_id: @player.id, slot: slot)
+    entry.object_id = obj.id
+    entry.save!
+  end
+
+  def find_player_item(name)
+    items = InventoryItem.where(owner_type: "PlayerCharacter", owner_id: @player.id).includes(:game_object)
+    items.find do |item|
+      obj = item.game_object
+      obj.present? && obj.name.downcase.include?(name.downcase)
+    end
+  end
 
   def show_inventory
     items = InventoryItem.where(owner_type: "PlayerCharacter", owner_id: @player.id).includes(:game_object)

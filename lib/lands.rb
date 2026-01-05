@@ -12,6 +12,7 @@ require_relative '../model/game_object'
 require_relative '../model/inventory_item'
 require_relative '../model/creature_loot'
 require_relative '../model/corpse'
+require_relative '../model/player_equipment'
 require_relative '../model/custom_command'
 require_relative '../model/creature_instance'
 require_relative '../model/ship'
@@ -1107,6 +1108,58 @@ class Lands
     print "Strength: #{@player.strength}"
     print "Dexterity: #{@player.dexterity}"
     print "Bravery: #{@player.bravery}"
+    print equipment_stats_line
+  end
+
+  def equipment_stats_line
+    weapon = @player.equipped_weapon
+    armor = @player.equipped_torso_armor
+
+    weapon_line = if weapon.present?
+      "Weapon: #{weapon.name} (#{weapon_damage_descriptor(weapon)})"
+    else
+      "Weapon: none"
+    end
+
+    armor_line = if armor.present?
+      "Torso Armor: #{armor.name} (#{armor_descriptor(armor)})"
+    else
+      "Torso Armor: none"
+    end
+
+    "#{weapon_line}\n\r#{armor_line}"
+  end
+
+  def weapon_damage_descriptor(weapon)
+    max = weapon.damage_max.to_i
+    case max
+    when 0..2
+      "very light damage"
+    when 3..5
+      "light damage"
+    when 6..10
+      "moderate damage"
+    when 11..16
+      "heavy damage"
+    else
+      "devastating damage"
+    end
+  end
+
+  def armor_descriptor(armor)
+    rating = armor.armor_rating.to_i
+    case rating
+    when 0..1
+      "minimal protection"
+    when 2..4
+      "light protection"
+    when 5..8
+      "moderate protection"
+    when 9..12
+      "heavy protection"
+    else
+      "exceptional protection"
+    end
   end
 
   def desc(phrase)
