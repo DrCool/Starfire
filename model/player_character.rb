@@ -95,7 +95,7 @@ class PlayerCharacter < ActiveRecord::Base
     amount = experience_for_creature(creature_instance)
     self.experience = self.experience.to_i + amount
     self.save
-    print "You gain #{amount} experience."
+    print "\r\nYou gain #{amount} experience."
   end
 
   def weapon_damage
