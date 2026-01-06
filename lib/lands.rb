@@ -302,15 +302,15 @@ class Lands
   end
 
   def create_new_user
-    print "\n\nWelcome, new user!\n";
-    print "What do you want your character's name to be?";
-    print_hold "\nName: ";
+    print "\n\nWelcome, new user!\n"
+    print "What do you want your character's name to be?"
+    print_hold "\nName: "
     username = get_line(true)
     print "This will be the name you'll use to login from now on."
 
-    print_hold "\nCreate a password: ";
+    print_hold "\nCreate a password: "
     print_hold "\xff\xfb\x01" # suppress echo on client to prevent display of password
-    pass = Password.create(get_line(true));
+    pass = Password.create(get_line(true))
     print "\xff\xfc\x01" # re-enable echo on client
 
     user = User.new
@@ -327,7 +327,7 @@ class Lands
     player_character.user_id = user.id
     player_character.save
 
-    puts "\033[7m #{name}\e[0m just logged in as a new user.";
+    puts "\033[7m #{name}\e[0m just logged in as a new user."
     username
   end
 
@@ -428,6 +428,12 @@ class Lands
       end
       @input = ""
       return val
+    end
+
+    # tab key
+    if char.ord == 9
+      char = ""
+      return
     end
 
     if char == "\e[A" # up
@@ -798,7 +804,7 @@ class Lands
       loop do # do background events and wait for input
         command = get_input
         if command.present?
-          if command.split(" ").first != "say"
+          if command.split(" ").first != "say" && command[0...1] != "'"
             print_hold "\n\r"
           end
           parse_input(command)

@@ -254,6 +254,11 @@ module GameCommands
       return
     end
 
+    if command[0...1] == "'"
+      say command[1...]
+      return
+    end
+
     print "Command not understood."
   end
 
@@ -312,7 +317,7 @@ module GameCommands
       sender_type: SENDER_TYPE_PLAYER
     }))
     @client.print "\e[2K\r" # erase current line
-    print_hold "You say, \"#{text}\"."
+    print_hold "You say, \"#{$pastel.cyan(text)}\"."
 	end
 
   def list_shop_items
