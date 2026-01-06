@@ -120,6 +120,27 @@ class Ship < ActiveRecord::Base
         # Announce to dock + ship interior
         emit_room_literal(depart_from[:dock_room_id], $pastel.bright_red(ship_name) + " departs for #{stop_label(next_stop)}.")
         emit_ship_literal($pastel.bright_red(ship_name) + " undocks and begins its journey to #{stop_label(next_stop)}.")
+
+        # Announce to any rooms that exist up to 1 space away from the dock room
+        begin
+          dock_room = Room.find_by(id: depart_from[:dock_room_id])
+          if dock_room.present?
+            adjacent_room_ids = World::Manager.adjacent_room_ids(dock_room.id, 1, :outside)
+            adjacent_room_ids.each do |arid|
+              emit_room_literal(arid, "You hear the rumble of a ship departing nearby.")
+            end
+
+            adjacent_room_ids = World::Manager.adjacent_room_ids(dock_room.id, 1, :inside)
+            adjacent_room_ids.each do |arid|
+              # If player is in a ship, ignore it
+              room = Room.find_by(id: arid)
+              next if room.present? && room.room_type_id == 4
+              emit_room_literal(arid, "You hear a loud rumble in the distance.")
+            end
+          end
+        rescue => e
+          warn "[Ship] ship_id=#{id} failed to announce departure to adjacent rooms: #{e.class}: #{e.message}"
+        end
       end
 
     when 'in_transit'
@@ -141,6 +162,27 @@ class Ship < ActiveRecord::Base
         emit_room_literal(dest_stop[:dock_room_id], $pastel.bright_red(ship_name) + " arrives from #{stop_label(from_stop)}.\n")
         emit_room_literal(dest_stop[:dock_room_id], $pastel.bright_red(ship_name) + " is docked for #{dock_seconds} seconds. Type 'board ship' to board.")
         emit_ship_literal($pastel.bright_red(ship_name) + " docks at #{stop_label(dest_stop)}.")
+
+        # Now announce to any rooms that exist up to 1 space away from the dock room
+        begin
+          dock_room = Room.find_by(id: dest_stop[:dock_room_id])
+          if dock_room.present?
+            adjacent_room_ids = World::Manager.adjacent_room_ids(dock_room.id, 1, :outside)
+            adjacent_room_ids.each do |arid|
+              emit_room_literal(arid, "You hear the rumble of a ship landing nearby.")
+            end
+
+            adjacent_room_ids = World::Manager.adjacent_room_ids(dock_room.id, 1, :inside)
+            adjacent_room_ids.each do |arid|
+              # If player is in a ship, ignore it
+              room = Room.find_by(id: arid)
+              next if room.present? && room.room_type_id == 4
+              emit_room_literal(arid, "You hear a loud rumble in the distance.")
+            end
+          end
+        rescue => e
+          warn "[Ship] ship_id=#{id} failed to announce arrival to adjacent rooms: #{e.class}: #{e.message}"
+        end
       else
         # Still in transit
         # Calculate progress percentage as an integer (0..100)

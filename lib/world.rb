@@ -108,6 +108,27 @@ module World
       }
     end
 
+    def self.adjacent_room_ids(room_id, distance = 1, inside_or_outside = :both)
+      room = Room.find_by(id: room_id)
+      return [] if room.blank?
+
+      # do a simple matrix search for adjacent rooms within the given distance
+      adjacent_ids = []
+      (-distance..distance).each do |dx|
+        (-distance..distance).each do |dy|
+          (-distance..distance).each do |dz|
+            next if dx == 0 && dy == 0 && dz == 0
+            adjacent_room = Room.find_by(x: room.x + dx, y: room.y + dy, z: room.z + dz)
+            if adjacent_room.present?
+              adjacent_ids << adjacent_room.id if (inside_or_outside == :both ||
+                 (inside_or_outside == :inside && adjacent_room.inside == 1) ||
+                 (inside_or_outside == :outside && adjacent_room.outside == 1))
+            end
+          end
+        end
+      end
+      adjacent_ids
+    end
 
     def self.instantiate_npcs
       $npcs = NPC.all

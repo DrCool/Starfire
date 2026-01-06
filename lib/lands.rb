@@ -1329,8 +1329,6 @@ class Lands
 
     # Creatures in room
     creatures = @room.creature_instances
-    puts "CREATURES IN ROOM:"
-    ap creatures
     if creatures.present?
       names = creatures.map { |c| vanna(c.creature_name) }
       line =
