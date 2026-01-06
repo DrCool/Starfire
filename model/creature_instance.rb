@@ -132,7 +132,7 @@ class CreatureInstance < ActiveRecord::Base
       room_id: room.id,
       creature_instance_id: id,
       credits: credits.to_i,
-      expires_at: 60.seconds.from_now
+      expires_at: 120.seconds.from_now
     )
 
     InventoryItem.where(owner_type: "CreatureInstance", owner_id: id).find_each do |item|
