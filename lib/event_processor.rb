@@ -56,6 +56,7 @@ module World
             creature.creature_name = c.name
             creature.credits = rand(c.credits_min..c.credits_max)
             creature.save
+            puts "[EventProcessor] Spawned creature #{creature.creature_name} (ID: #{creature.id}) in room ID #{creature.room_id}"
 
             World::Manager.room_event(Event.new({
               action: ACTION_SPAWN_CREATURE,
