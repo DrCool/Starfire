@@ -91,6 +91,13 @@ class PlayerCharacter < ActiveRecord::Base
     self.save
   end
 
+  def award_experience_for(creature_instance)
+    amount = experience_for_creature(creature_instance)
+    self.experience = self.experience.to_i + amount
+    self.save
+    print "\r\nYou gain #{amount} experience."
+  end
+
   def weapon_damage
     weapon = equipped_weapon
     min = weapon&.damage_min.to_i
@@ -121,6 +128,20 @@ class PlayerCharacter < ActiveRecord::Base
   def equipped_torso_armor
     entry = PlayerEquipment.find_by(player_character_id: id, slot: "torso")
     entry&.game_object
+  end
+
+  def experience_for_creature(creature_instance)
+    creature = creature_instance.creature
+    hitmax = creature.hitmax.to_i
+    strength = creature.strength.to_i
+    dexterity = creature.dexterity.to_i
+
+    base = (hitmax / 2.0) + (strength / 4.0) + (dexterity / 4.0)
+    base = base.round
+    base = 1 if base < 1
+
+    variance = rand(0..(base * 0.2).round)
+    base + variance
   end
 
   private

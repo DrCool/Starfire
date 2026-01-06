@@ -1,5 +1,6 @@
 require 'tribe'
 require_relative '../lib/actable'
+require_relative '../model/player_character'
 
 class CreatureInstance < ActiveRecord::Base
   include Tribe::Actable
@@ -86,6 +87,7 @@ class CreatureInstance < ActiveRecord::Base
   def died(event)
     room = Room.find(self.room.id)
     id = self.creature.id
+    award_experience(event)
     create_corpse_for_room(room)
     World::Manager.room_event(Event.new({
       action: ACTION_DIE,
@@ -139,5 +141,12 @@ class CreatureInstance < ActiveRecord::Base
   end
 
   def on_timer(event)
+  end
+
+  def award_experience(event)
+    attacker = event.data[:attacker]
+    return unless attacker.is_a?(PlayerCharacter)
+
+    attacker.award_experience_for(self)
   end
 end

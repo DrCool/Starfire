@@ -846,7 +846,10 @@ class Lands
 
       text = ""
       event_list.each do |event|
-        text += event.message if event.message.present?
+        if event.message.present?
+          text += "\r\n" unless text.empty?
+          text += event.message
+        end
         process_event(event)
       end
 
@@ -1058,6 +1061,8 @@ class Lands
   end
 
   def board_ship
+    ap Ship.first
+    ap player.room
     ship = Ship.where(is_automated: true).find { |s| s.docked_at_room?(player.room) }
     if ship.nil?
       print "There is no ship to board here."
@@ -1141,12 +1146,6 @@ class Lands
       "moderate damage"
     when 11..16
       "heavy damage"
-    when 17-40
-      "very heavy damage"
-    when 41-90
-      "huge damage"
-    when 91-150
-      "massive damage"
     else
       "devastating damage"
     end
@@ -1155,13 +1154,13 @@ class Lands
   def armor_descriptor(armor)
     rating = armor.armor_rating.to_i
     case rating
-    when 0..4
+    when 0..1
       "minimal protection"
-    when 5..10
+    when 2..4
       "light protection"
-    when 11..17
+    when 5..8
       "moderate protection"
-    when 17..30
+    when 9..12
       "heavy protection"
     else
       "exceptional protection"
@@ -1329,6 +1328,8 @@ class Lands
 
     # Creatures in room
     creatures = @room.creature_instances
+    puts "CREATURES IN ROOM:"
+    ap creatures
     if creatures.present?
       names = creatures.map { |c| vanna(c.creature_name) }
       line =
