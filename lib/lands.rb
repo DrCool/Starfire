@@ -1058,8 +1058,6 @@ class Lands
   end
 
   def board_ship
-    ap Ship.first
-    ap player.room
     ship = Ship.where(is_automated: true).find { |s| s.docked_at_room?(player.room) }
     if ship.nil?
       print "There is no ship to board here."
@@ -1143,6 +1141,12 @@ class Lands
       "moderate damage"
     when 11..16
       "heavy damage"
+    when 17-40
+      "very heavy damage"
+    when 41-90
+      "huge damage"
+    when 91-150
+      "massive damage"
     else
       "devastating damage"
     end
@@ -1151,13 +1155,13 @@ class Lands
   def armor_descriptor(armor)
     rating = armor.armor_rating.to_i
     case rating
-    when 0..1
+    when 0..4
       "minimal protection"
-    when 2..4
+    when 5..10
       "light protection"
-    when 5..8
+    when 11..17
       "moderate protection"
-    when 9..12
+    when 17..30
       "heavy protection"
     else
       "exceptional protection"
