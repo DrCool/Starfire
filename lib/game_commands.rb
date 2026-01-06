@@ -129,7 +129,7 @@ module GameCommands
 
         return
       when "test"
-        result = scrolling_menu
+        result = scrolling_menu("Test Question", ["Option 1", "Option 2", "Option 3"])
         ap "User chose option: #{result}"
         return
       when "loc"
@@ -375,6 +375,22 @@ module GameCommands
     entry.update!(stock: entry.stock.to_i - 1)
     add_item_to_player(obj.id, 1)
     print "You buy #{obj.name}."
+
+    emit_room_literal(@player.room_id, "#{@player.name} buys #{obj.name}.")
+  end
+
+  def emit_room_literal(room_id, message)
+    return if room_id.nil?
+    room = Room.find_by(id: room_id)
+    return if room.nil?
+
+    World::Manager.room_event(Event.new({
+                                          action: ACTION_LITERAL,
+                                          room: room,
+                                          message: message,
+                                          data: { room_id: id },
+                                          sender_type: SENDER_TYPE_ROOM
+                                        }))
   end
 
   def sell_item(text)
@@ -411,6 +427,8 @@ module GameCommands
     @player.update!(credits: @player.credits.to_i + credits)
     restock_shop_item(shop, obj.id)
     print "You sell #{obj.name}."
+
+    emit_room_literal(@player.room_id, "#{@player.name} sells #{obj.name}.")
   end
 
   def shop_in_room
