@@ -148,9 +148,11 @@ module GameCommands
         show_inventory
         return
       when "follow"
-        follow
+        follow text
         return
-
+      when "unfollow"
+        unfollow
+        return
       when "desc"
         return if text == ""
         desc text
@@ -220,7 +222,7 @@ module GameCommands
     		entity = find_entity_in_room(text)
         if entity.present?
     		case entity[:type]
-    		when :npc
+    		  when :npc
             npc = entity[:entity]
             print npc.description
             print "#{npc.npc_name} health: [#{npc.hp} / #{npc.hitmax}]"
@@ -239,14 +241,12 @@ module GameCommands
       		when :prop
       			return
           when :corpse
-            print "It's a corpse. You can type 'search corpse' to see if it has any items or objects you can take."
+            print "It's a corpse. You can type 'search corpse' to see if it has any items you can take. After typing 'search corpse', the items or credits will appear in the room. Type 'get <item name>' to pick up any items, or 'get all'."
             return
       		end
         end
     		print "There isn't #{vanna(text)} here."
-    		return
-
-
+        return
     end
 
     if command[0...1] == "."
@@ -397,7 +397,7 @@ module GameCommands
                                           action: ACTION_LITERAL,
                                           room: room,
                                           message: message,
-                                          data: { room_id: id },
+                                          data: { room_id: room_id },
                                           sender_type: SENDER_TYPE_ROOM
                                         }))
   end
@@ -501,7 +501,7 @@ module GameCommands
     end
 
     obj = item.game_object
-    if obj.nil? || obj.item_type != "weapon"
+    if obj.nil? or obj.item_type != "weapon"
       print "You can't wield that."
       return
     end
@@ -540,18 +540,18 @@ module GameCommands
     end
 
     obj = item.game_object
-    if obj.nil? || obj.item_type != "armor"
+    if obj.nil? or obj.item_type != "armor"
       print "You can't wear that."
       return
     end
 
-    if obj.slot.present? && obj.slot != "torso"
+    if obj.slot.present? and obj.slot != "torso"
       print "You can't wear that on your torso."
       return
     end
 
     required_level = obj.required_level.to_i
-    if required_level > 0 && @player.level.to_i < required_level
+    if required_level > 0 and @player.level.to_i < required_level
       print "You are not experienced enough to wear that."
       return
     end
@@ -619,19 +619,53 @@ module GameCommands
       return
     end
 
-    npc = Npc.where(room_id: @room.id).where("npc_name ILIKE ?", "%#{text.strip}%").first
-    if npc.nil?
+    entity = find_entity_in_room(text)
+    if entity.present?
+      case entity[:type]
+      when :npc
+        npc = entity[:entity]
+
+        if npc.nil?
+          print "#{vanna(text)} isn't here."
+          return
+        elsif npc.followable == false
+          print "#{npc.npc_name} cannot be followed."
+          return
+        elsif @player.following_npc_id != nil
+          print "You are already following #{npc.npc_name}. Type 'unfollow' to stop following."
+          return
+        else
+          @player.update!(following_npc_id: npc.id, following_player_id: nil)
+          print "You are now following #{npc.npc_name}. Type 'unfollow' to stop following."
+          return
+        end
+      end
+    end
+
+    player = Player.where(room_id: @room.id).where("name ILIKE ?", "%#{text.strip}%").first
+    if player.nil?
       print "#{vanna(text)} isn't here."
       return
+    elsif @player.following_player_id != nil
+      print "You are already following #{player.name}. Type 'unfollow' to stop following."
+      return
+    else
+      @player.update!(following_player_id: player.id, following_npc_id: nil)
+      print "You are now following #{player.name}. Type 'unfollow' to stop following."
+      emit_room_literal(@room.id, "#{@player.name} is now following #{player.name}.")
+      return
     end
+  end
 
-    if npc.following_player_id == @player.id
-      print "You are already following #{npc.npc_name}."
+  def unfollow
+    if @player.following_npc_id == nil and @player.following_player_id == nil
+      print "You are not following anyone."
       return
     end
 
-    npc.update!(following_player_id: @player.id)
-    print "You are now following #{npc.npc_name}."
+    @player.update!(following_npc_id: nil, following_player_id: nil)
+    print "You stop following."
+    emit_room_literal(@room.id, "#{@player.name} stops following someone.")
   end
 
   def search_item(text)
@@ -696,7 +730,7 @@ module GameCommands
     end
 
     inventory_item = find_room_item(text)
-    if inventory_item.nil? || inventory_item[:type] != :object
+    if inventory_item.nil? or inventory_item[:type] != :object
       print "There isn't #{vanna(text)} here."
       return
     end

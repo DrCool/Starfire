@@ -868,6 +868,7 @@ class Lands
   def process_event(event)
     case event.action
     when ACTION_EXIT_ROOM, ACTION_ENTER_ROOM, ACTION_TELEPORT_ENTER, ACTION_TELEPORT_EXIT
+      check_for_follow event.options
       @room.npc.reload
       @room.player_characters.reload
     when ACTION_EXIT_GAME, ACTION_ENTER_GAME
@@ -911,6 +912,74 @@ class Lands
     World::Manager.notify_room(player.name, message, x, y, z)
   end
 
+  def get_pronoun(player)
+    if player.sex == 'male'
+      return "him"
+    elsif player.sex == 'female'
+      return "her"
+    else
+      return "them"
+    end
+  end
+
+  def check_for_follow(event)
+    if @player.following_player_id.present?
+      following_player = PlayerCharacter.find_by_id(@player.following_player_id)
+
+      if event[:sender_type] != SENDER_TYPE_PLAYER or event.data[:npc].id != following_player.id
+        return
+      end
+
+      player_room = Room.find_by(x: @player.x + event[:data][:x], y: @player.y + event[:data][:y], z: @player.z + event[:data][:z]) if following_player.present?
+      if player_room.present?
+        @player.room_id = player_room.id
+        @player.x = player_room.x
+        @player.y = player_room.y
+        @player.z = player_room.z
+        print following_player.name + " just went " + event[:data][:to_dir_verbose] + ". You followed #{get_pronoun(following_player)}.\n"
+        load_room
+        print_location
+      else
+        @player.following_player_id = nil
+        @player.save
+        overprint "The player you were following has logged out. You have stopped following them."
+      end
+    elsif @player.following_npc_id.present?
+      ap event
+      ap event[:npc]
+      following_npc = NPC.find_by_id(@player.following_npc_id)
+      # check if the event npc is the one being followed
+      #       World::Manager.room_event(Event.new({
+      #         action: ACTION_EXIT_ROOM,
+      #         room: self.room,
+      #         message: $pastel.bright_yellow(self.npc_name) + " went #{vector[:to_dir]}.",
+      #         data: vector,
+      #         npc: self,
+      #         sender_type: SENDER_TYPE_NPC
+      #       }))
+
+      if event[:sender_type] != SENDER_TYPE_NPC or event[:npc].id != following_npc.id
+        return
+      end
+
+      following_npc_room = Room.find_by_id(following_npc.room_id)
+      npc_room = Room.find_by(x: following_npc_room.x + event[:data][:x], y: following_npc_room.y + event[:data][:y], z: following_npc_room.z + event[:data][:z]) if following_npc.present?
+      if npc_room.present?
+        @player.room_id = npc_room.id
+        @player.x = npc_room.x
+        @player.y = npc_room.y
+        @player.z = npc_room.z
+        print following_npc.npc_name + " just went " + event[:data][:to_dir_verbose] + ". You followed them.\n"
+        load_room
+        print_location
+      else
+        @player.following_npc_id = nil
+        @player.save
+        overprint "The NPC you were following is no longer here. You have stopped following them."
+      end
+    end
+  end
+
   def transport_user(x, y, z, exit_text, enter_text)
     exit_text = "#{@player.name} just disappeared in a puff of smoke!" if exit_text.nil?
     enter_text = "#{@player.name} just appeared in a puff of smoke!" if exit_text.nil?
@@ -927,6 +996,11 @@ class Lands
   def dir(dir)
     if !@room.exits.split('').include?(dir)
       print "You can't go that way."
+      return
+    end
+
+    if @player.following_player_id.present? or @player.following_npc_id.present?
+      print "You can't move while following someone. Type 'unfollow' to stop following."
       return
     end
 
