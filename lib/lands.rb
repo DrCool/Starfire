@@ -846,7 +846,10 @@ class Lands
 
       text = ""
       event_list.each do |event|
-        text += event.message if event.message.present?
+        if event.message.present?
+          text += "\r\n" unless text.empty?
+          text += event.message
+        end
         process_event(event)
       end
 
