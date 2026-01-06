@@ -798,7 +798,9 @@ class Lands
       loop do # do background events and wait for input
         command = get_input
         if command.present?
-          print_hold "\n\r"
+          if command.split(" ").first != "say"
+            print_hold "\n\r"
+          end
           parse_input(command)
           break
         end

@@ -147,6 +147,10 @@ module GameCommands
       when "inv", "inventory"
         show_inventory
         return
+      when "follow"
+        follow
+        return
+
       when "desc"
         return if text == ""
         desc text
@@ -301,14 +305,14 @@ module GameCommands
 
   def say(text)
     World::Manager.room_event(Event.new({
-      action: Event.action[:say],
+      action: ACTION_SAY,
       room: self.room,
       data: { sender_name: @player.name, text: text },
       player: @player,
-      sender_type: Event.sender_type[:player]
+      sender_type: SENDER_TYPE_PLAYER
     }))
-    # Maybe rewrite the previous line to say:  You say, "Hello everyone."
-    #print "Everyone in the room heard you."
+    @client.print "\e[2K\r" # erase current line
+    print_hold "You say, \"#{text}\"."
 	end
 
   def list_shop_items
@@ -602,6 +606,27 @@ module GameCommands
         print "* #{obj.name}"
       end
     end
+  end
+
+  def follow(text)
+    if text.strip == ""
+      print "Follow whom?"
+      return
+    end
+
+    npc = Npc.where(room_id: @room.id).where("npc_name ILIKE ?", "%#{text.strip}%").first
+    if npc.nil?
+      print "#{vanna(text)} isn't here."
+      return
+    end
+
+    if npc.following_player_id == @player.id
+      print "You are already following #{npc.npc_name}."
+      return
+    end
+
+    npc.update!(following_player_id: @player.id)
+    print "You are now following #{npc.npc_name}."
   end
 
   def search_item(text)
