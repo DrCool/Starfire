@@ -8,6 +8,13 @@ require_relative '../model/npc_movement'
 require_relative '../model/npc_saying'
 require_relative '../model/prop'
 require_relative '../model/creature'
+require_relative '../model/game_object'
+require_relative '../model/inventory_item'
+require_relative '../model/creature_loot'
+require_relative '../model/corpse'
+require_relative '../model/player_equipment'
+require_relative '../model/shop'
+require_relative '../model/shop_inventory'
 require_relative '../model/custom_command'
 require_relative '../model/creature_instance'
 require_relative '../model/ship'
@@ -1103,6 +1110,58 @@ class Lands
     print "Strength: #{@player.strength}"
     print "Dexterity: #{@player.dexterity}"
     print "Bravery: #{@player.bravery}"
+    print equipment_stats_line
+  end
+
+  def equipment_stats_line
+    weapon = @player.equipped_weapon
+    armor = @player.equipped_torso_armor
+
+    weapon_line = if weapon.present?
+      "Weapon: #{weapon.name} (#{weapon_damage_descriptor(weapon)})"
+    else
+      "Weapon: none"
+    end
+
+    armor_line = if armor.present?
+      "Torso Armor: #{armor.name} (#{armor_descriptor(armor)})"
+    else
+      "Torso Armor: none"
+    end
+
+    "#{weapon_line}\n\r#{armor_line}"
+  end
+
+  def weapon_damage_descriptor(weapon)
+    max = weapon.damage_max.to_i
+    case max
+    when 0..2
+      "very light damage"
+    when 3..5
+      "light damage"
+    when 6..10
+      "moderate damage"
+    when 11..16
+      "heavy damage"
+    else
+      "devastating damage"
+    end
+  end
+
+  def armor_descriptor(armor)
+    rating = armor.armor_rating.to_i
+    case rating
+    when 0..1
+      "minimal protection"
+    when 2..4
+      "light protection"
+    when 5..8
+      "moderate protection"
+    when 9..12
+      "heavy protection"
+    else
+      "exceptional protection"
+    end
   end
 
   def desc(phrase)
@@ -1278,6 +1337,65 @@ class Lands
         end
       print line
     end
+
+    print_room_ground_items
+  end
+
+  def print_room_ground_items
+    cleanup_expired_corpses
+    location_text = @room.inside.to_i == 1 ? "on the floor" : "on the ground"
+    credits_on_ground = @room.credits_on_ground.to_i
+
+    if credits_on_ground > 0
+      credit_line =
+        if credits_on_ground == 1
+          "There is 1 credit #{location_text}."
+        else
+          "There are #{credits_on_ground} credits #{location_text}."
+        end
+      print credit_line
+    end
+
+    names = room_object_names
+    return if names.empty?
+
+    line =
+      if names.length == 1
+        "#{names.first} is #{location_text}."
+      else
+        "#{names[0..-2].join(', ')} and #{names.last} are #{location_text}."
+      end
+    print line
+  end
+
+  def cleanup_expired_corpses
+    Corpse.where(room_id: @room.id).where("expires_at <= ?", Time.now).find_each(&:destroy)
+  end
+
+  def room_object_names
+    items = InventoryItem.where(owner_type: "Room", owner_id: @room.id).includes(:game_object)
+    names = []
+
+    items.each do |item|
+      obj = item.game_object
+      next if obj.nil?
+
+      quantity = item.quantity.to_i
+      if quantity > 1
+        names << "#{quantity} #{obj.name}"
+      else
+        names << vanna(obj.name)
+      end
+    end
+
+    corpse_count = Corpse.where(room_id: @room.id).count
+    if corpse_count == 1
+      names << vanna("corpse")
+    elsif corpse_count > 1
+      names << "#{corpse_count} corpses"
+    end
+
+    names
   end
 
 
@@ -1417,7 +1535,26 @@ class Lands
     result = players.find do |player|
       player.name.downcase.include? name.downcase
     end
-    { entity: result, type: :player } if result.present?
+    return { entity: result, type: :player } if result.present?
+
+    room_item = find_room_item(name)
+    return room_item if room_item.present?
+  end
+
+  def find_room_item(name)
+    return nil if name.blank?
+
+    downcased = name.downcase
+    items = InventoryItem.where(owner_type: "Room", owner_id: @room.id).includes(:game_object)
+    item = items.find do |inventory_item|
+      obj = inventory_item.game_object
+      obj.present? && obj.name.downcase.include?(downcased)
+    end
+    return { entity: item, type: :object } if item.present?
+
+    corpse = Corpse.where(room_id: @room.id).order(:created_at).first
+    return { entity: corpse, type: :corpse } if corpse.present? && downcased.include?("corpse")
+
+    nil
   end
 end
-

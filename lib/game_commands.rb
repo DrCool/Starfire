@@ -144,6 +144,9 @@ module GameCommands
       when "look"
         print_location(verbose: true)
         return
+      when "inv", "inventory"
+        show_inventory
+        return
       when "desc"
         return if text == ""
         desc text
@@ -171,6 +174,33 @@ module GameCommands
       when "say"
         say text
         return
+      when "list"
+        list_shop_items
+        return
+      when "buy"
+        buy_item text
+        return
+      when "sell"
+        sell_item text
+        return
+      when "wield"
+        wield_item text
+        return
+      when "unwield"
+        unwield_item
+        return
+      when "wear"
+        wear_item text
+        return
+      when "remove"
+        remove_item text
+        return
+      when "get"
+        get_item text
+        return
+      when "search"
+        search_item text
+        return
       when "hea", "health"
       	print "Your health: #{@player.hp} / #{@player.hitmax}"
       	return
@@ -185,8 +215,8 @@ module GameCommands
     	when "exa", "examine"
     		entity = find_entity_in_room(text)
         if entity.present?
-      		case entity[:type]
-      		when :npc
+    		case entity[:type]
+    		when :npc
             npc = entity[:entity]
             print npc.description
             print "#{npc.npc_name} health: [#{npc.hp} / #{npc.hitmax}]"
@@ -204,6 +234,9 @@ module GameCommands
       			return
       		when :prop
       			return
+          when :corpse
+            print "It's a corpse. You can type 'search corpse' to see if it has any items or objects you can take."
+            return
       		end
         end
     		print "There isn't #{vanna(text)} here."
@@ -266,7 +299,7 @@ module GameCommands
 		end
 	end
 
-	def say(text)
+  def say(text)
     World::Manager.room_event(Event.new({
       action: Event.action[:say],
       room: self.room,
@@ -277,6 +310,406 @@ module GameCommands
     # Maybe rewrite the previous line to say:  You say, "Hello everyone."
     #print "Everyone in the room heard you."
 	end
+
+  def list_shop_items
+    shop = shop_in_room
+    if shop.nil?
+      print "There is no shop here."
+      return
+    end
+
+    items = ShopInventory.where(shop_id: shop.id).includes(:game_object)
+    if items.empty?
+      print "The shelves are empty."
+      return
+    end
+
+    print "Items for sale:"
+    items.each do |entry|
+      obj = entry.game_object
+      next if obj.nil?
+
+      stock = entry.stock.to_i
+      next if stock <= 0
+
+      print "* #{obj.name} - #{entry.price} credits (#{stock} in stock)"
+    end
+  end
+
+  def buy_item(text)
+    if text.strip == ""
+      print "Buy what?"
+      return
+    end
+
+    shop = shop_in_room
+    if shop.nil?
+      print "There is no shop here."
+      return
+    end
+
+    entry = find_shop_item(shop, text)
+    if entry.nil?
+      print "That item isn't for sale here."
+      return
+    end
+
+    if entry.stock.to_i <= 0
+      print "That item is out of stock."
+      return
+    end
+
+    price = entry.price.to_i
+    if @player.credits.to_i < price
+      print "You don't have enough credits."
+      return
+    end
+
+    obj = entry.game_object
+    if obj.nil?
+      print "That item isn't available."
+      return
+    end
+
+    @player.update!(credits: @player.credits.to_i - price)
+    entry.update!(stock: entry.stock.to_i - 1)
+    add_item_to_player(obj.id, 1)
+    print "You buy #{obj.name}."
+  end
+
+  def sell_item(text)
+    if text.strip == ""
+      print "Sell what?"
+      return
+    end
+
+    shop = shop_in_room
+    if shop.nil?
+      print "There is no shop here."
+      return
+    end
+
+    item = find_player_item(text)
+    if item.nil?
+      print "You aren't carrying that."
+      return
+    end
+
+    obj = item.game_object
+    if obj.nil?
+      print "That item cannot be sold."
+      return
+    end
+
+    credits = obj.sell_price.to_i
+    if credits <= 0
+      print "That item isn't worth anything."
+      return
+    end
+
+    deduct_player_item(item, 1)
+    @player.update!(credits: @player.credits.to_i + credits)
+    restock_shop_item(shop, obj.id)
+    print "You sell #{obj.name}."
+  end
+
+  def shop_in_room
+    return nil unless @room.room_type_id.to_i == 1
+
+    Shop.find_by(room_id: @room.id)
+  end
+
+  def find_shop_item(shop, name)
+    items = ShopInventory.where(shop_id: shop.id).includes(:game_object)
+    items.find do |entry|
+      obj = entry.game_object
+      obj.present? && obj.name.downcase.include?(name.downcase)
+    end
+  end
+
+  def add_item_to_player(object_id, quantity)
+    existing = InventoryItem.where(
+      owner_type: "PlayerCharacter",
+      owner_id: @player.id,
+      object_id: object_id
+    ).first
+
+    if existing.present?
+      existing.update!(quantity: existing.quantity.to_i + quantity)
+    else
+      InventoryItem.create!(
+        owner_type: "PlayerCharacter",
+        owner_id: @player.id,
+        object_id: object_id,
+        quantity: quantity
+      )
+    end
+  end
+
+  def deduct_player_item(item, quantity)
+    remaining = item.quantity.to_i - quantity
+    if remaining > 0
+      item.update!(quantity: remaining)
+    else
+      item.destroy
+    end
+  end
+
+  def restock_shop_item(shop, object_id)
+    entry = ShopInventory.find_or_initialize_by(shop_id: shop.id, object_id: object_id)
+    entry.stock = entry.stock.to_i + 1
+    entry.save!
+  end
+
+  def wield_item(text)
+    if text.strip == ""
+      print "Wield what?"
+      return
+    end
+
+    item = find_player_item(text)
+    if item.nil?
+      print "You aren't carrying that."
+      return
+    end
+
+    obj = item.game_object
+    if obj.nil? || obj.item_type != "weapon"
+      print "You can't wield that."
+      return
+    end
+
+    required_level = obj.required_level.to_i
+    if required_level > 0 && @player.level.to_i < required_level
+      print "You are not experienced enough to wield that."
+      return
+    end
+
+    equip_item("weapon", obj)
+    print "You wield the #{obj.name}."
+  end
+
+  def unwield_item
+    entry = PlayerEquipment.find_by(player_character_id: @player.id, slot: "weapon")
+    if entry.nil?
+      print "You aren't wielding a weapon."
+      return
+    end
+
+    entry.destroy
+    print "You lower your weapon."
+  end
+
+  def wear_item(text)
+    if text.strip == ""
+      print "Wear what?"
+      return
+    end
+
+    item = find_player_item(text)
+    if item.nil?
+      print "You aren't carrying that."
+      return
+    end
+
+    obj = item.game_object
+    if obj.nil? || obj.item_type != "armor"
+      print "You can't wear that."
+      return
+    end
+
+    if obj.slot.present? && obj.slot != "torso"
+      print "You can't wear that on your torso."
+      return
+    end
+
+    required_level = obj.required_level.to_i
+    if required_level > 0 && @player.level.to_i < required_level
+      print "You are not experienced enough to wear that."
+      return
+    end
+
+    equip_item("torso", obj)
+    print "You wear the #{obj.name}."
+  end
+
+  def remove_item(_text)
+    entry = PlayerEquipment.find_by(player_character_id: @player.id, slot: "torso")
+    if entry.nil?
+      print "You aren't wearing any torso armor."
+      return
+    end
+
+    entry.destroy
+    print "You remove your torso armor."
+  end
+
+  def equip_item(slot, obj)
+    entry = PlayerEquipment.find_or_initialize_by(player_character_id: @player.id, slot: slot)
+    entry.object_id = obj.id
+    entry.save!
+  end
+
+  def find_player_item(name)
+    items = InventoryItem.where(owner_type: "PlayerCharacter", owner_id: @player.id).includes(:game_object)
+    items.find do |item|
+      obj = item.game_object
+      obj.present? && obj.name.downcase.include?(name.downcase)
+    end
+  end
+
+  def show_inventory
+    items = InventoryItem.where(owner_type: "PlayerCharacter", owner_id: @player.id).includes(:game_object)
+    credits = @player.credits.to_i
+
+    if credits == 0 && items.empty?
+      print "You are carrying nothing."
+      return
+    end
+
+    print "You are carrying:"
+    if credits > 0
+      credit_line = credits == 1 ? "1 credit" : "#{credits} credits"
+      print "* #{credit_line}"
+    end
+
+    items.each do |item|
+      obj = item.game_object
+      next if obj.nil?
+
+      quantity = item.quantity.to_i
+      if quantity > 1
+        print "* #{quantity} #{obj.name}"
+      else
+        print "* #{obj.name}"
+      end
+    end
+  end
+
+  def search_item(text)
+    if text.strip == ""
+      print "Search what?"
+      return
+    end
+
+    if text.downcase.include?("corpse")
+      search_corpse
+      return
+    end
+
+    print "You don't see anything like that to search."
+  end
+
+  def search_corpse
+    corpse = Corpse.where(room_id: @room.id).order(:created_at).first
+    if corpse.nil?
+      print "There isn't a corpse here."
+      return
+    end
+
+    if corpse.expires_at.present? && Time.now > corpse.expires_at
+      corpse.destroy
+      print "The corpse has already decayed."
+      return
+    end
+
+    drop_corpse_items(corpse)
+    corpse.destroy
+    print "You search the corpse."
+    print_location
+  end
+
+  def drop_corpse_items(corpse)
+    InventoryItem.where(owner_type: "Corpse", owner_id: corpse.id).find_each do |item|
+      drop_inventory_item(item, "Room", @room.id)
+    end
+
+    credits = corpse.credits.to_i
+    return if credits <= 0
+
+    @room.update!(credits_on_ground: @room.credits_on_ground.to_i + credits)
+  end
+
+  def get_item(text)
+    if text.strip == ""
+      print "Get what?"
+      return
+    end
+
+    text = text.strip
+    if text == "all"
+      get_all_items
+      return
+    end
+
+    if text == "credits"
+      pickup_credits
+      return
+    end
+
+    inventory_item = find_room_item(text)
+    if inventory_item.nil? || inventory_item[:type] != :object
+      print "There isn't #{vanna(text)} here."
+      return
+    end
+
+    take_room_item(inventory_item[:entity])
+  end
+
+  def get_all_items
+    picked_any = false
+
+    if @room.credits_on_ground.to_i > 0
+      pickup_credits
+      picked_any = true
+    end
+
+    items = InventoryItem.where(owner_type: "Room", owner_id: @room.id).includes(:game_object)
+    items.each do |item|
+      take_room_item(item)
+      picked_any = true
+    end
+
+    print "There is nothing here to pick up." unless picked_any
+  end
+
+  def pickup_credits
+    credits = @room.credits_on_ground.to_i
+    if credits <= 0
+      print "There are no credits here."
+      return
+    end
+
+    @room.update!(credits_on_ground: 0)
+    @player.update!(credits: @player.credits.to_i + credits)
+    print "You pick up #{credits} credits."
+  end
+
+  def take_room_item(item)
+    obj = item.game_object
+    if obj.nil?
+      item.destroy
+      return
+    end
+
+    drop_inventory_item(item, "PlayerCharacter", @player.id)
+    print "You pick up #{obj.name}."
+  end
+
+  def drop_inventory_item(item, new_owner_type, new_owner_id)
+    existing = InventoryItem.where(
+      owner_type: new_owner_type,
+      owner_id: new_owner_id,
+      object_id: item.object_id
+    ).first
+
+    if existing.present?
+      existing.update!(quantity: existing.quantity.to_i + item.quantity.to_i)
+      item.destroy
+    else
+      item.update!(owner_type: new_owner_type, owner_id: new_owner_id)
+    end
+  end
 
 
 end
