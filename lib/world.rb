@@ -138,6 +138,33 @@ module World
 
     end
 
+    def self.repopulate_creatures
+      Creature.where(active: 1).find_each do |creature|
+        next if creature.room_id.blank?
+        next if CreatureInstance.where(creature_id: creature.id).exists?
+
+        room = Room.find_by(id: creature.room_id)
+        next if room.blank?
+
+        CreatureInstance.create!(
+          creature_id: creature.id,
+          room_id: room.id,
+          room: room,
+          hp: creature.hp,
+          creature_name: creature.name,
+          credits: spawn_creature_credits(creature)
+        )
+      end
+    end
+
+    def self.spawn_creature_credits(creature)
+      min = creature.credits_min.to_i
+      max = creature.credits_max.to_i
+      max = min if max < min
+
+      rand(min..max)
+    end
+
     def self.logout_all_players
 
       players = PlayerCharacter.where(logged_in: true).all

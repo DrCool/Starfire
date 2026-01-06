@@ -80,6 +80,7 @@ class Init
   end
 
   def start
+    World::Manager.repopulate_creatures
     init_global_creature_respawner
     init_ship_mover
     init_shop_restock
