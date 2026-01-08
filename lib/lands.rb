@@ -816,6 +816,7 @@ class Lands
 
   def initialize_room_sayings
     client_thread = Thread.current
+    client_thread[:q] ||= []
 
     # Room Sayings thread - randomly display any room sayings
     @room_saying_thread = Thread.new do
