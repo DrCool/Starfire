@@ -317,7 +317,7 @@ module GameCommands
   # List jobs/quests at the current board
   def list_jobs
     unless @room.room_type_id.to_i == 5
-      print "There is no job board here."
+      print "There is no quest board here."
       return
     end
 
@@ -338,12 +338,12 @@ module GameCommands
 
     print ""
     print $pastel.on_red($pastel.bright_white($pastel.bold("                         ")))
-    print $pastel.on_red($pastel.bright_white($pastel.bold("        Job Board        ")))
+    print $pastel.on_red($pastel.bright_white($pastel.bold("       Quest Board       ")))
     print $pastel.on_red($pastel.bright_white($pastel.bold("                         ")))
     print ""
 
     if quests.empty?
-      print "No jobs are posted here."
+      print "No quests are posted here."
       return
     end
 
@@ -410,7 +410,7 @@ module GameCommands
 
   def show_job_details(text)
     unless @room.room_type_id.to_i == 5
-      print "There is no job board here."
+      print "There is no quest board here."
       return
     end
 
@@ -424,7 +424,7 @@ module GameCommands
 
     q = Quest.find_by(id: quest_id, is_active: 1, start_room_id: @room.id)
     if q.nil?
-      print "That job is not posted here."
+      print "That quest is not posted here."
       return
     end
 
@@ -486,7 +486,7 @@ module GameCommands
 
   def accept_quest(text)
     unless @room.room_type_id.to_i == 5
-      print "You need to be at a job board to accept jobs."
+      print "You need to be at a job board to accept quests."
       return
     end
 
@@ -500,7 +500,7 @@ module GameCommands
 
     q = Quest.find_by(id: quest_id, is_active: 1, start_room_id: @room.id)
     if q.nil?
-      print "That job is not posted here."
+      print "That quest is not posted here."
       return
     end
 
@@ -509,18 +509,18 @@ module GameCommands
     max_lvl = q.respond_to?(:max_level) ? q.max_level : nil
 
     if min_lvl.present? && level < min_lvl.to_i
-      print "You are not experienced enough for that job."
+      print "You are not experienced enough for that quest."
       return
     end
 
     if max_lvl.present? && level > max_lvl.to_i
-      print "That job is meant for less experienced workers."
+      print "That quest is meant for less experienced players."
       return
     end
 
     if quests_table_exists?("quest_prerequisites")
       unless prerequisites_pass?(q.id)
-        print "You do not meet the prerequisites for that job."
+        print "You do not meet the prerequisites for that quest."
         return
       end
     end
@@ -531,19 +531,19 @@ module GameCommands
     if cq.present?
       state = cq.state.to_s
       if state == "active"
-        print "You have already accepted that job."
+        print "You have already accepted that quest."
         return
       end
 
       if state == "completed" && !repeatable
-        print "You have already completed that job."
+        print "You have already completed that quest."
         return
       end
 
       if repeatable
         secs = seconds_until(cq.cooldown_until)
         if secs > 0
-          print "That job is not available yet. Check back in #{secs}s."
+          print "That quest is not available yet. Check back in #{secs}s."
           return
         end
       end
@@ -576,9 +576,9 @@ module GameCommands
     end
 
     print "You accept: #{q.name.presence || q.quest_key}"
-    print "Type 'journal' to track your active jobs."
+    print "Type 'journal' to track your active quests."
   rescue => e
-    print "Could not accept that job."
+    print "Could not accept that quest."
     print "Error: #{e.message}"
   end
 
@@ -593,7 +593,7 @@ module GameCommands
 
     cq = active_character_quests.find { |row| row.quest_id.to_i == quest_id }
     if cq.nil?
-      print "You do not have that job active."
+      print "You do not have that quest active."
       return
     end
 
@@ -602,7 +602,7 @@ module GameCommands
 
     step = current_step_for(cq)
     if step.nil?
-      print "That job cannot be turned in right now."
+      print "That quest cannot be turned in right now."
       return
     end
 
@@ -613,7 +613,7 @@ module GameCommands
     ).to_a
 
     if objectives.empty?
-      print "That job cannot be turned in right now."
+      print "That quest cannot be turned in right now."
       return
     end
 
@@ -624,7 +624,7 @@ module GameCommands
     end
 
     unless turnin
-      print "You need to be at the turn-in location to complete that job."
+      print "You need to be at the turn-in location to complete that quest."
       return
     end
 
@@ -632,21 +632,21 @@ module GameCommands
     updates = progress.handle_turn_in(quest_id: quest_id, room_id: @room.id)
 
     if updates <= 0
-      print "You are not ready to complete that job."
+      print "You are not ready to complete that quest."
       return
     end
 
     cq.reload
 
     if cq.state.to_s == "completed"
-      print $pastel.green("Job completed: #{quest_name}")
+      print $pastel.green("Quest completed: #{quest_name}")
       rewards = fetch_quest_rewards_summary(quest_id)
       print "Reward: #{rewards}" if rewards.present?
     else
-      print "Job updated: #{quest_name}"
+      print "Quest updated: #{quest_name}"
     end
   rescue => e
-    print "Could not complete that job."
+    print "Could not complete that quest."
     print "Error: #{e.message}"
   end
 
@@ -665,7 +665,7 @@ module GameCommands
       cq = active_character_quests.find { |row| row.quest_id.to_i == quest_id }
 
       if cq.nil?
-        print "You do not have that job active."
+        print "You do not have that quest active."
         return
       end
 
