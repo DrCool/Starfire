@@ -562,17 +562,15 @@ module GameCommands
 
     new_cq = CharacterQuest.create!(attrs)
 
-    if defined?(CharacterQuestObjective) && defined?(QuestObjective) && quests_table_exists?("character_quest_objectives")
-      QuestObjective.where(quest_id: q.id).find_each do |obj|
-        oattrs = {
-          character_quest_id: new_cq.id,
-          quest_objective_id: obj.id
-        }
-        oattrs[:current_count] = 0 if CharacterQuestObjective.column_names.include?("current_count")
-        oattrs[:is_completed] = 0 if CharacterQuestObjective.column_names.include?("is_completed")
-        oattrs[:is_complete] = 0 if CharacterQuestObjective.column_names.include?("is_complete")
-        CharacterQuestObjective.create!(oattrs)
-      end
+    QuestObjective.where(quest_id: q.id).find_each do |obj|
+      oattrs = {
+        character_quest_id: new_cq.id,
+        quest_objective_id: obj.id
+      }
+      oattrs[:current_count] = 0 if CharacterQuestObjective.column_names.include?("current_count")
+      oattrs[:is_completed] = 0 if CharacterQuestObjective.column_names.include?("is_completed")
+      oattrs[:is_complete] = 0 if CharacterQuestObjective.column_names.include?("is_complete")
+      CharacterQuestObjective.create!(oattrs)
     end
 
     print "You accept: #{q.name.presence || q.quest_key}"
