@@ -106,7 +106,7 @@ module World
           )
 
           completion_column = objective_completion_column
-          completed = completion_column && cqo.send(completion_column).to_i == 1
+          completed = completion_column && objective_completed?(cqo, completion_column)
           next if completed
 
           if mark_complete
@@ -117,7 +117,7 @@ module World
           end
 
           if cqo.respond_to?(:current_count) && obj.required_count.to_i <= cqo.current_count.to_i
-            cqo.send("#{completion_column}=", 1) if completion_column
+            cqo.send("#{completion_column}=", completion_value(true)) if completion_column
             cqo.completed_at = Time.now if cqo.respond_to?(:completed_at=)
           end
 
@@ -159,7 +159,7 @@ module World
       ).to_a
       return if cqo_rows.empty?
 
-      all_complete = cqo_rows.all? { |row| row.send(completion_column).to_i == 1 }
+      all_complete = cqo_rows.all? { |row| objective_completed?(row, completion_column) }
       return unless all_complete
 
       next_step = QuestStep.where(quest_id: character_quest.quest_id)
@@ -237,13 +237,27 @@ module World
       ).to_a
       return false if rows.empty?
 
-      rows.all? { |row| row.send(completion_column).to_i == 1 }
+      rows.all? { |row| objective_completed?(row, completion_column) }
     end
 
     def objective_completion_column
       return "is_completed" if CharacterQuestObjective.column_names.include?("is_completed")
       return "is_complete" if CharacterQuestObjective.column_names.include?("is_complete")
       nil
+    end
+
+    def objective_completed?(row, completion_column)
+      value = row.send(completion_column)
+      return true if value == true
+      return false if value == false || value.nil?
+
+      value.to_i == 1
+    end
+
+    def completion_value(flag)
+      return true if CharacterQuestObjective.columns_hash[objective_completion_column]&.type == :boolean
+
+      flag ? 1 : 0
     end
 
     def character_quest_fk_column

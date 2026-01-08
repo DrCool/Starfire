@@ -859,7 +859,13 @@ module GameCommands
     col = objective_completion_column
     return false if col.nil?
 
-    row.respond_to?(col) && row.send(col).to_i == 1
+    return false unless row.respond_to?(col)
+
+    value = row.send(col)
+    return true if value == true
+    return false if value == false || value.nil?
+
+    value.to_i == 1
   end
 
   def current_step_for(character_quest)
