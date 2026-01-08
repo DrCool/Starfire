@@ -1,3 +1,5 @@
+require_relative 'quest_events'
+
 module World
   class OnlinePlayers
     include Enumerable
@@ -191,6 +193,7 @@ module World
 
     def self.room_event(event)
       $spawner.process_event(event)
+      QuestEvents.process(event)
 
       room_id = event.room.id
       from_player = event.player.name if event.player.present?

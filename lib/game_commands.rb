@@ -10,6 +10,7 @@ require_relative '../model/quest_prerequisite'
 require_relative '../model/quest_objective'
 require_relative '../model/quest_reward'
 require_relative '../model/quest_step'
+require_relative 'quest_progression'
 
 module GameCommands
 
@@ -243,6 +244,9 @@ module GameCommands
         return
       when "journal"
         journal text
+        return
+      when "complete"
+        complete_quest text
         return
     	when "exa", "examine"
     		entity = find_entity_in_room(text)
@@ -565,6 +569,7 @@ module GameCommands
           quest_objective_id: obj.id
         }
         oattrs[:current_count] = 0 if CharacterQuestObjective.column_names.include?("current_count")
+        oattrs[:is_completed] = 0 if CharacterQuestObjective.column_names.include?("is_completed")
         oattrs[:is_complete] = 0 if CharacterQuestObjective.column_names.include?("is_complete")
         CharacterQuestObjective.create!(oattrs)
       end
@@ -574,6 +579,74 @@ module GameCommands
     print "Type 'journal' to track your active jobs."
   rescue => e
     print "Could not accept that job."
+    print "Error: #{e.message}"
+  end
+
+  def complete_quest(text)
+    token = text.to_s.strip.split(" ").first
+    unless token.present? && token =~ /^\d+$/
+      print "Usage: complete <quest_id>"
+      return
+    end
+
+    quest_id = token.to_i
+
+    cq = active_character_quests.find { |row| row.quest_id.to_i == quest_id }
+    if cq.nil?
+      print "You do not have that job active."
+      return
+    end
+
+    q = Quest.find_by(id: quest_id)
+    quest_name = q&.name.presence || q&.quest_key.to_s || "Quest #{quest_id}"
+
+    step = current_step_for(cq)
+    if step.nil?
+      print "That job cannot be turned in right now."
+      return
+    end
+
+    objectives = QuestObjective.where(
+      quest_id: quest_id,
+      step_id: step.id,
+      objective_type: "turnin"
+    ).to_a
+
+    if objectives.empty?
+      print "That job cannot be turned in right now."
+      return
+    end
+
+    turnin = objectives.any? do |obj|
+      target_room = obj.target_room_id.to_i if obj.respond_to?(:target_room_id)
+      next true if target_room.nil? || target_room == 0
+      target_room == @room.id
+    end
+
+    unless turnin
+      print "You need to be at the turn-in location to complete that job."
+      return
+    end
+
+    progress = World::QuestProgression.new(@player)
+    updates = progress.handle_turn_in(quest_id: quest_id, room_id: @room.id)
+
+    if updates <= 0
+      print "You are not ready to complete that job."
+      return
+    end
+
+    cq.reload
+
+    if cq.state.to_s == "completed"
+      print $pastel.green("Job completed: #{quest_name}")
+      rewards = fetch_quest_rewards_summary(quest_id)
+      print "Reward: #{rewards}" if rewards.present?
+    else
+      print "Job updated: #{quest_name}"
+    end
+  rescue => e
+    print "Could not complete that job."
     print "Error: #{e.message}"
   end
 
@@ -653,7 +726,7 @@ module GameCommands
           begin
             rows = CharacterQuestObjective.where(character_quest_id: cq.id).to_a
             total = rows.length
-            complete = rows.count { |r| r.respond_to?(:is_complete) && r.is_complete.to_i == 1 }
+            complete = rows.count { |r| objective_completed?(r) }
             if total > 0
               obj_line = "Objectives: #{complete}/#{total}"
               print "   #{$pastel.magenta(obj_line)}"
@@ -725,8 +798,8 @@ module GameCommands
 
             # Progress formatting
             cur = r.respond_to?(:current_count) ? r.current_count.to_i : nil
-            tgt = obj&.respond_to?(:target_count) ? obj.target_count.to_i : nil
-            done = r.respond_to?(:is_complete) ? (r.is_complete.to_i == 1) : false
+            tgt = obj&.respond_to?(:required_count) ? obj.required_count.to_i : nil
+            done = objective_completed?(r)
 
             done_tag = done ? " #{$pastel.green('[DONE]')}" : ""
 
@@ -771,6 +844,22 @@ module GameCommands
       .to_a
   rescue
     []
+  end
+
+  def objective_completion_column
+    return "is_completed" if defined?(CharacterQuestObjective) &&
+      CharacterQuestObjective.column_names.include?("is_completed")
+    return "is_complete" if defined?(CharacterQuestObjective) &&
+      CharacterQuestObjective.column_names.include?("is_complete")
+
+    nil
+  end
+
+  def objective_completed?(row)
+    col = objective_completion_column
+    return false if col.nil?
+
+    row.respond_to?(col) && row.send(col).to_i == 1
   end
 
   def current_step_for(character_quest)
