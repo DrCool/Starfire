@@ -281,42 +281,23 @@ module World
     def notify_step_complete(character_quest, step, objectives, next_step)
       return unless @character.respond_to?(:client)
 
-      completed_labels = objectives.map { |obj| objective_label(obj, include_count: false) }.compact
-      step_summary = if completed_labels.include?("Kill 5 Dust Skitters")
+      accomplished = step.description.to_s.strip
+      accomplished = "Step #{step.step_number} - #{step.name}." if accomplished.empty?
+      step_summary = if accomplished.downcase.include?("kill 5 dust skitters")
                        "Accomplished: Kill 5 Dust Skitters."
-                     elsif completed_labels.any?
-                       "Accomplished: #{completed_labels.join(', ')}."
                      else
-                       "Accomplished: Step #{step.step_number} - #{step.name}."
+                       "Accomplished: #{accomplished}"
                      end
 
       print "#{$pastel.bright_green('Quest step complete!')} #{$pastel.green(step_summary)}"
 
-      next_objectives = QuestObjective.where(quest_id: character_quest.quest_id, step_id: next_step.id)
-      if next_objectives.any?
-        step_label = "Next Step #{next_step.step_number}: #{next_step.name}".strip
-        print "#{$pastel.bright_cyan(step_label)}"
-        print "#{$pastel.bright_cyan('Next objectives:')}"
-        next_objectives.each do |obj|
-          label = objective_label(obj, include_count: true)
-          next if label.blank?
-          print " - #{$pastel.yellow(label)}"
-        end
-      end
+      next_description = next_step.description.to_s.strip
+      next_description = "Step #{next_step.step_number} - #{next_step.name}." if next_description.empty?
+      step_label = "Next Step #{next_step.step_number}: #{next_step.name}".strip
+      print "#{$pastel.bright_cyan(step_label)}"
+      print " - #{$pastel.yellow(next_description)}"
 
       emit_room_literal(@character.room_id, "#{@character.name} completed a quest step: #{step_summary}")
-    end
-
-    def objective_label(objective, include_count: false)
-      label = objective&.description.to_s.strip
-      label = objective&.objective_type.to_s.strip if label.empty?
-      return nil if label.empty?
-
-      if include_count && objective&.respond_to?(:required_count) && objective.required_count.to_i > 1
-        "#{label} (#{objective.required_count})"
-      else
-        label
-      end
     end
 
     def emit_room_literal(room_id, message)
