@@ -7,6 +7,8 @@ require_relative '../model/quest'
 require_relative '../model/quest_objective'
 require_relative '../model/quest_reward'
 require_relative '../model/quest_step'
+require_relative '../model/room'
+require_relative '../model/event'
 
 module World
   class QuestProgression
@@ -168,6 +170,7 @@ module World
                            .first
 
       if next_step
+        notify_step_complete(character_quest, step, objectives, next_step)
         character_quest.current_step_number = next_step.step_number if character_quest.respond_to?(:current_step_number=)
         character_quest.save!
       else
@@ -273,6 +276,69 @@ module World
       JSON.parse(parameters_json.to_s)
     rescue JSON::ParserError
       {}
+    end
+
+    def notify_step_complete(character_quest, step, objectives, next_step)
+      return unless @character.respond_to?(:client)
+
+      completed_labels = objectives.map { |obj| objective_label(obj, include_count: false) }.compact
+      step_summary = if completed_labels.include?("Kill 5 Dust Skitters")
+                       "Accomplished: Kill 5 Dust Skitters."
+                     elsif completed_labels.any?
+                       "Accomplished: #{completed_labels.join(', ')}."
+                     else
+                       "Accomplished: Step #{step.step_number} - #{step.name}."
+                     end
+
+      print "#{$pastel.bright_green('Quest step complete!')} #{$pastel.green(step_summary)}"
+
+      next_objectives = QuestObjective.where(quest_id: character_quest.quest_id, step_id: next_step.id)
+      if next_objectives.any?
+        step_label = "Next Step #{next_step.step_number}: #{next_step.name}".strip
+        print "#{$pastel.bright_cyan(step_label)}"
+        print "#{$pastel.bright_cyan('Next objectives:')}"
+        next_objectives.each do |obj|
+          label = objective_label(obj, include_count: true)
+          next if label.blank?
+          print " - #{$pastel.yellow(label)}"
+        end
+      end
+
+      emit_room_literal(@character.room_id, "#{@character.name} completed a quest step: #{step_summary}")
+    end
+
+    def objective_label(objective, include_count: false)
+      label = objective&.description.to_s.strip
+      label = objective&.objective_type.to_s.strip if label.empty?
+      return nil if label.empty?
+
+      if include_count && objective&.respond_to?(:required_count) && objective.required_count.to_i > 1
+        "#{label} (#{objective.required_count})"
+      else
+        label
+      end
+    end
+
+    def emit_room_literal(room_id, message)
+      return if room_id.nil?
+      return unless defined?(Room) && defined?(Event)
+
+      room = Room.find_by(id: room_id)
+      return if room.nil?
+
+      World::Manager.room_event(Event.new({
+        action: ACTION_LITERAL,
+        room: room,
+        message: message,
+        data: { room_id: room_id },
+        sender_type: SENDER_TYPE_ROOM
+      }))
+    end
+
+    def print(text)
+      return unless @character.respond_to?(:client) && @character.client
+
+      @character.send(:print, text)
     end
   end
 end
