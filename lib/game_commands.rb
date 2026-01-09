@@ -248,7 +248,8 @@ module GameCommands
       when "complete"
         complete_quest text
         return
-    	when "exa", "examine"
+    when "exa", "examine"
+        check_for_quest_objective("examine", text)
     		entity = find_entity_in_room(text)
         if entity.present?
     		case entity[:type]
