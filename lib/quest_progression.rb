@@ -319,7 +319,12 @@ module World
     private
 
     def print(text)
-      Lands.print text
+      return if text.nil?
+      return unless @character.respond_to?(:client) && @character.client
+
+      @character.client.puts(Lands.word_wrap(text) + "\r")
+    rescue IOError
+      @character.logout_player if @character.respond_to?(:logout_player)
     end
 
   end

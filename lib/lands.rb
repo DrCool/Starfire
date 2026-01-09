@@ -1280,8 +1280,6 @@ class Lands
   end
 
   def word_wrap(text, cols: nil, indent: 0)
-    return "" if text.nil?
-
     # Determine width from player screen params
     cols ||= begin
                sp = @screen_params
@@ -1289,6 +1287,15 @@ class Lands
              rescue StandardError
                0
              end
+    cols = 80 if cols <= 0
+
+    self.class.word_wrap(text, cols: cols, indent: indent)
+  end
+
+  def self.word_wrap(text, cols: 80, indent: 0)
+    return "" if text.nil?
+
+    cols = cols.to_i
     cols = 80 if cols <= 0
 
     indent = indent.to_i
@@ -1332,9 +1339,7 @@ class Lands
         break_at = nil
         window = remaining[0, line_usable]
         idx = window.rindex(" ")
-        if idx
-          break_at = idx
-        end
+        break_at = idx if idx
 
         if break_at && break_at > 0
           # Keep the segment exactly; drop the single break space, but keep any additional spaces
