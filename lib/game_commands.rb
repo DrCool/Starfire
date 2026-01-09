@@ -655,13 +655,13 @@ module GameCommands
     return unless quests_table_exists?("quest_objectives")
 
     case action.to_s
-    when "examine"
-      prop = context[:prop] || resolve_prop_in_room(text)
-      return if prop.nil?
+      when "examine"
+        prop = context[:prop] || resolve_prop_in_room(text)
+        return if prop.nil?
 
-      progress = World::QuestProgression.new(@player)
-      updates = progress.handle_examine(target: prop, room_id: @room&.id)
-      print $pastel.green("Journal updated.") if updates.to_i > 0
+        progress = World::QuestProgression.new(@player)
+        updates = progress.handle_examine(target: prop, room_id: @room&.id)
+        print $pastel.green("Journal updated.") if updates.to_i > 0
     end
   end
 

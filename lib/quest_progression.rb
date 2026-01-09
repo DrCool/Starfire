@@ -299,17 +299,27 @@ module World
       accomplished = "Step #{step.step_number} - #{step.name}." if accomplished.empty?
       step_summary = accomplished
 
-      print "#{$pastel.bright_green('Quest step complete!')} #{$pastel.green(step_summary)}"
+      print "#{$pastel.bright_green('Quest step complete!')} #{$pastel.green(step_summary)}\n"
 
       next_description = next_step.description.to_s.strip
       next_description = "Step #{next_step.step_number} - #{next_step.name}." if next_description.empty?
       step_label = "Next Step #{next_step.step_number}: #{next_step.name}".strip
       print "#{$pastel.bright_cyan(step_label)}"
-      print " - #{$pastel.yellow(next_description)}"
+      print " - #{$pastel.yellow(next_description)}\n"
+      puts "HERE"
 
       if defined?(World::Manager)
         World::Manager.notify_room(@character.name, "#{@character.name} completed a quest step: #{step_summary}", @character.x, @character.y, @character.z)
       end
+    end
+
+
+
+
+    private
+
+    def print(text)
+      Lands.print text
     end
 
   end

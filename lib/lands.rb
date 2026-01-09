@@ -345,6 +345,7 @@ class Lands
       Thread.current.exit
     end
   end
+
   def self.print(text)
     return if text.nil?
     begin
