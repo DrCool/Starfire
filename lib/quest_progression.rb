@@ -307,7 +307,9 @@ module World
       print "#{$pastel.bright_cyan(step_label)}"
       print " - #{$pastel.yellow(next_description)}"
 
-      notify_room(@player, "#{@character.name} completed a quest step: #{step_summary}", @character.x, @character.y, @character.z)
+      if defined?(World::Manager)
+        World::Manager.notify_room(@character.name, "#{@character.name} completed a quest step: #{step_summary}", @character.x, @character.y, @character.z)
+      end
     end
 
   end
