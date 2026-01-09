@@ -249,32 +249,29 @@ module GameCommands
         complete_quest text
         return
     when "exa", "examine"
-        check_for_quest_objective("examine", text)
     		entity = find_entity_in_room(text)
         if entity.present?
-    		case entity[:type]
-    		  when :npc
-            npc = entity[:entity]
-            print npc.description
-            print "#{npc.npc_name} health: [#{npc.hp} / #{npc.hitmax}]"
-      			return
-      		when :creature
-      			creature_instance = entity[:entity]
-            creature_instance.reload
-      			ap "**************************"
-      			ap entity
-      			ap "**************************"
-      			print creature_instance.creature.description
-      			print "#{creature_instance.creature_name.capitalize} health: [#{creature_instance.hp} / #{creature_instance.creature.hitmax}]"
-      			return
-      		when :object
-      			return
-      		when :prop
-      			return
-          when :corpse
-            print "It's a corpse. You can type 'search corpse' to see if it has any items you can take. After typing 'search corpse', the items or credits will appear in the room. Type 'get <item name>' to pick up any items, or 'get all'."
-            return
-      		end
+          check_for_quest_objective("examine", text)
+          case entity[:type]
+            when :npc
+              npc = entity[:entity]
+              print npc.description
+              print "#{npc.npc_name} health: [#{npc.hp} / #{npc.hitmax}]"
+              return
+            when :creature
+              creature_instance = entity[:entity]
+              creature_instance.reload
+              print creature_instance.creature.description
+              print "#{creature_instance.creature_name.capitalize} health: [#{creature_instance.hp} / #{creature_instance.creature.hitmax}]"
+              return
+            when :object
+              return
+            when :prop
+              return
+            when :corpse
+              print "It's a corpse. You can type 'search corpse' to see if it has any items you can take. After typing 'search corpse', the items or credits will appear in the room. Type 'get <item name>' to pick up any items, or 'get all'."
+              return
+          end
         end
     		print "There isn't #{vanna(text)} here."
         return
