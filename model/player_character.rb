@@ -18,7 +18,7 @@ class PlayerCharacter < ActiveRecord::Base
     World::Manager.room_event(Event.new({
     	action: ACTION_EXIT_GAME,
     	room: self.room,
-    	message: "#{self.name} left the game.",
+    	message: "#{$pastel.bright_yellow(self.name)} left the game.",
     	player: self
   	}))
 

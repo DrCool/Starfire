@@ -939,7 +939,6 @@ class Lands
     when ACTION_SPAWN_CREATURE
       #@room.reload
       @room.creature_instances.reload
-      puts "RELOADING CREATURE INSTANCES in room"
     when ACTION_UPDATE_ROOM_DESC
       @room.reload
     when ACTION_HIT
@@ -975,11 +974,11 @@ class Lands
 
   def get_pronoun(player)
     if player.sex == 'male'
-      return "him"
+      "him"
     elsif player.sex == 'female'
-      return "her"
+      "her"
     else
-      return "them"
+      "them"
     end
   end
 
@@ -997,7 +996,7 @@ class Lands
         @player.x = player_room.x
         @player.y = player_room.y
         @player.z = player_room.z
-        print following_player.name + " just went " + event[:data][:to_dir_verbose] + ". You followed #{get_pronoun(following_player)}.\n"
+        overprint $pastel.bright_yellow(following_player.name) + " just went " + event[:data][:to_dir_verbose] + ". You followed #{get_pronoun(following_player)}.\n"
         load_room
         print_location
       else
@@ -1030,7 +1029,7 @@ class Lands
         @player.x = npc_room.x
         @player.y = npc_room.y
         @player.z = npc_room.z
-        print following_npc.npc_name + " just went " + event[:data][:to_dir_verbose] + ". You followed them.\n"
+        print $pastel.bright_yellow(following_npc.npc_name) + " just went " + event[:data][:to_dir_verbose] + ". You followed them.\n"
         load_room
         print_location
       else
@@ -1071,7 +1070,7 @@ class Lands
     World::Manager.room_event(Event.new({
       action: ACTION_EXIT_ROOM,
       room: @room,
-      message: "#{@player.name} went #{vector[:to_dir]}.",
+      message: "#{$pastel.bright_yellow(@player.name)} went #{vector[:to_dir]}.",
       data: vector,
       player: @player,
       sender_type: SENDER_TYPE_PLAYER
@@ -1094,7 +1093,7 @@ class Lands
     World::Manager.room_event(Event.new({
       action: ACTION_ENTER_ROOM,
       room: @room,
-      message: "#{@player.name} entered from #{vector[:from_dir]}.",
+      message: "#{$pastel.bright_yellow(@player.name)} entered from #{vector[:from_dir]}.",
       data: vector,
       player: @player,
       sender_type: SENDER_TYPE_PLAYER
@@ -1219,8 +1218,8 @@ class Lands
 
     # transport player to ship's interior room
     transport_user(room.x, room.y, room.z,
-      "#{@player.name} boarded the #{ship.name}.",
-      "#{@player.name} boarded the #{ship.name}.")
+      "#{$pastel.bright_yellow(@player.name)} boarded the #{ship.name}.",
+      "#{$pastel.bright_yellow(@player.name)} boarded the #{ship.name}.")
   end
 
   def leave_ship
@@ -1244,12 +1243,12 @@ class Lands
 
     # transport player to docking room
     transport_user(room.x, room.y, room.z,
-                   "#{@player.name} left the #{ship.name}.",
-                   "#{@player.name} entered from the #{ship.name}.")
+                   "#{$pastel.bright_yellow(@player.name)} left the #{ship.name}.",
+                   "#{$pastel.bright_yellow(@player.name)} entered from the #{ship.name}.")
   end
 
   def stats
-    print $pastel.bright_white("Character Stats for #{@player.name}")
+    print $pastel.bright_white("Character Stats for #{$pastel.bright_yellow(@player.name)}")
     print "Level: #{@player.level}"
     print "Experience: #{@player.experience}"
     print "Health: #{@player.hp} / #{@player.hitmax}"
