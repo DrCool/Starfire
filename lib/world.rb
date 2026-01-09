@@ -154,12 +154,12 @@ module World
           room: room,
           hp: creature.hp,
           creature_name: creature.name,
-          credits: spawn_creature_credits(creature)
+          credits: get_creature_credits(creature)
         )
       end
     end
 
-    def self.spawn_creature_credits(creature)
+    def self.get_creature_credits(creature)
       min = creature.credits_min.to_i
       max = creature.credits_max.to_i
       max = min if max < min
@@ -179,7 +179,7 @@ module World
     end
 
     def self.in_room_players(x, y, z)
-      players = PlayerCharacter.where(room_id: @room.id, logged_in: true).all
+      PlayerCharacter.where(room_id: @room.id, logged_in: true).all
     end
 
     def self.notify_room(from_player = nil, text, x, y, z)

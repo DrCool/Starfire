@@ -23,6 +23,10 @@ require_relative './game_commands'
 
 require 'sorted_set'
 require 'pastel'
+# When running under process managers (pm2, launchd, etc.) stdout may not be a TTY,
+# and Pastel will disable ANSI by default. For a telnet MUD we *want* ANSI codes
+# regardless of server stdout, because the client is a terminal.
+$pastel = Pastel.new(enabled: true)
 require 'bcrypt'
 require 'workers'
 require 'tribe'
@@ -50,6 +54,15 @@ class Lands
   attr_accessor :client, :player, :room, :command, :dir_list, :lands_instance
   @pause_events = false
 
+  def disconnect_player_and_exit!
+    begin
+      @player&.logout_player
+    rescue StandardError
+      # swallow: we’re already disconnecting
+    end
+    Thread.current.exit
+  end
+
   def overprint(text)
     @client.print "\e[2K\r" # erase current line
     print text
@@ -65,6 +78,7 @@ class Lands
 
   def initialize
     connect_db
+    $pastel = Pastel.new(enabled: true)
 
     @client = nil
     @input = ""
@@ -196,7 +210,6 @@ class Lands
   def telnet_negotiate!
     @screen_params ||= { rows: 24, cols: 80 }
 
-    # --- EXACT SAME AS YOUR CURRENT NEGOTIATION ---
     # Send IAC DO SGA - IAC WILL SGA
     print_hold "\xff\xfd\x03\xff\xfb\x03"
     # Consume up to the same 6 bytes you currently ignore, but without risking an indefinite block.
@@ -217,14 +230,6 @@ class Lands
     telnet_parse_naws!(naws_bytes)
   end
 
-  def term_cols
-    (@screen_params && @screen_params[:cols]) || 80
-  end
-
-  def term_rows
-    (@screen_params && @screen_params[:rows]) || 24
-  end
-
   def start_game(client)
     @client = client
     show_cursor
@@ -237,6 +242,7 @@ class Lands
 
     # Negotiate telnet options (keeps existing SGA+ECHO behavior, plus NAWS for terminal size)
     telnet_negotiate!
+    get_screen_size
 
     load_room
     World::Manager.room_event(Event.new({
@@ -341,8 +347,7 @@ class Lands
     begin
       @client.puts(word_wrap(text) + "\r")
     rescue IOError
-      World::Manager.logout_player(@player)
-      Thread.current.exit
+      disconnect_player_and_exit!
     end
   end
 
@@ -351,8 +356,7 @@ class Lands
     begin
       @client.puts(word_wrap(text) + "\r")
     rescue IOError
-      World::Manager.logout_player(@player)
-      Thread.current.exit
+      disconnect_player_and_exit!
     end
   end
 
@@ -362,18 +366,16 @@ class Lands
     return if text.nil?
     begin
       @client.print(text)
-    rescue IOError
-      World::Manager.logout_player(@player)
-      Thread.current.exit
+    rescue Errno::ECONNRESET, Errno::EPIPE, EOFError, IOError, SystemCallError
+      disconnect_player_and_exit!
     end
   end
   def self.print_hold(text)
     return if text.nil?
     begin
       @client.print(text)
-    rescue IOError
-      World::Manager.logout_player(@player)
-      Thread.current.exit
+    rescue Errno::ECONNRESET, Errno::EPIPE, EOFError, IOError, SystemCallError
+      disconnect_player_and_exit!
     end
   end
 
@@ -412,63 +414,110 @@ class Lands
 
   #################################################################################################################
   def get_input
-    char = @client.recvfrom(3)
-    char = char.first
-    char = "" if char == "\r"
+    # Some telnet clients (especially mobile apps) buffer an entire line and send it
+    # all at once (e.g. "look\r\n"). Other clients send character-by-character.
+    # This reader handles both by consuming whatever bytes are available and then
+    # processing them byte-by-byte.
 
-    if char == "\x7F" && @input != ""
-      @input = @input[0...-1]
-      erase_client_characters(1)
+    begin
+      # Read a larger chunk than 3 bytes so buffered-line clients work properly.
+      data, = @client.recvfrom(1024)
+    rescue Errno::ECONNRESET, Errno::EPIPE, EOFError, IOError, SystemCallError
+      disconnect_player_and_exit!
     end
 
-    if char.ord== 13 # enter key
-      val = @input
-      if @input != ""
-        @command_history << val
-        @cmd_history_index = @command_history.count
+    return nil if data.nil? || data.empty?
+
+    i = 0
+    while i < data.bytesize
+      # Grab the next byte as a 1-char string
+      ch = data.getbyte(i)
+
+      # --- Handle ANSI escape sequences for arrow keys, etc. ---
+      if ch == 27 # "\e"
+        seq = data[i, 3]
+        if seq == "\e[A" # up
+          if @cmd_history_index > 0
+            @cmd_history_index -= 1
+            @input = @command_history[@cmd_history_index] || ""
+            print_hold "\e[M\r"
+            show_prompt
+            print_hold @input
+          end
+          i += 3
+          next
+        elsif seq == "\e[B" # down
+          if @cmd_history_index < @command_history.count
+            @cmd_history_index += 1
+            @input = @command_history[@cmd_history_index] || ""
+            print_hold "\e[M\r"
+            show_prompt
+            print_hold @input
+          end
+          i += 3
+          next
+        elsif seq == "\e[C" # right
+          i += 3
+          next
+        elsif seq == "\e[D" # left
+          i += 3
+          next
+        else
+          # Unknown escape sequence; ignore this byte.
+          i += 1
+          next
+        end
       end
-      @input = ""
-      return val
-    end
 
-    # tab key
-    if char.ord == 9
-      char = ""
-      return
-    end
-
-    if char == "\e[A" # up
-      char = ""
-      if @cmd_history_index > 0
-        # show previous command
-        @cmd_history_index -= 1
-        @input = @command_history[@cmd_history_index] || ""
-        print_hold "\e[M\r"
-        show_prompt
-        print_hold @input
+      # --- Backspace / delete ---
+      if ch == 127 # "\x7F"
+        if @input != ""
+          @input = @input[0...-1]
+          erase_client_characters(1)
+        end
+        i += 1
+        next
       end
-      return
-    elsif char == "\e[B" # down
-      char = ""
-      if @cmd_history_index < @command_history.count
-        # show next command in history
-        @cmd_history_index += 1
-        @input = @command_history[@cmd_history_index] || ""
-        print_hold "\e[M\r"
-        show_prompt
-        print_hold @input
+
+      # --- Enter / newline ---
+      if ch == 13 || ch == 10 # CR or LF
+        # If we received CRLF together, consume both but only submit once.
+        if ch == 13 && (i + 1) < data.bytesize && data.getbyte(i + 1) == 10
+          i += 1
+        end
+
+        val = @input
+        if val != ""
+          @command_history << val
+          @cmd_history_index = @command_history.count
+        else
+          @cmd_history_index = @command_history.count
+        end
+        @input = ""
+
+        return val
       end
-      return
-    elsif char == "\e[C" # right
-      char = ""
-      return
-    elsif char == "\e[D" # left
-      char = ""
-      return
+
+      # --- Tab ---
+      if ch == 9
+        i += 1
+        next
+      end
+
+      # Ignore null bytes
+      if ch == 0
+        i += 1
+        next
+      end
+
+      # --- Normal printable character ---
+      char_str = ch.chr
+      print_hold char_str
+      @input += char_str
+
+      i += 1
     end
 
-    print_hold char
-    @input += char if char.ord != 13 and char != "\x00" and char != "\x7F"
     nil
   end
   #################################################################################################################
@@ -494,7 +543,11 @@ class Lands
 
   def get_char
     while true
-      char = @client.recvfrom(3)
+      begin
+        char = @client.recvfrom(3)
+      rescue Errno::ECONNRESET, Errno::EPIPE, EOFError, IOError, SystemCallError
+        disconnect_player_and_exit!
+      end
       char = char.first
       return char
     end
@@ -502,7 +555,11 @@ class Lands
 
   def get_only_cursor_key_input
     while true
-      char = @client.recvfrom(3)
+      begin
+        char = @client.recvfrom(3)
+      rescue Errno::ECONNRESET, Errno::EPIPE, EOFError, IOError, SystemCallError
+        disconnect_player_and_exit!
+      end
       char = char.first
 
       return KEY.ENTER if char.ord == 13
@@ -800,6 +857,7 @@ class Lands
     # Begin eternal loop
     loop do
       save_player
+      get_screen_size
       print ""
       show_prompt
 
@@ -1506,7 +1564,10 @@ class Lands
     # ANSI fallback: move cursor far right/down then ask terminal for cursor position.
     # Some telnet clients won't support this; NAWS (if present) is preferred.
     begin
-      print_hold "\0337\033[r\033[9999;9999H" + "\033[6n"
+      # Save cursor position, move far bottom-right, ask for cursor position (CPR).
+      # IMPORTANT: Always restore the cursor afterward so gameplay output doesn't jump.
+      print_hold "\0337\033[r\033[9999;9999H\033[6n"
+
       response_code = ""
       while true
         d = @client.getc
@@ -1527,6 +1588,14 @@ class Lands
       end
     rescue StandardError
       # ignore and keep existing @screen_params (possibly from NAWS)
+    ensure
+      # Restore saved cursor position (ESC 8).
+      # Use print_hold so it goes to the telnet client, not server stdout.
+      begin
+        print_hold "\0338"
+      rescue StandardError
+        # ignore
+      end
     end
 
     @screen_params ||= { rows: 24, cols: 80 }

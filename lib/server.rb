@@ -37,7 +37,7 @@ require_relative '../lib/active_enum_defs'
 require_relative '../lib/event_processor'
 Thread.abort_on_exception = true
 
-$pastel = Pastel.new
+$pastel = Pastel.new(enabled: true)
 
 # Constants
 FIELD_TYPE_STRING = 0
@@ -71,14 +71,6 @@ class Init
   World::Manager.logout_all_players
   World::Manager.instantiate_npcs
 
-  def notify_room(from_player, text, x, y, z)
-    $online_players.each do |player|
-      if player.present? && player.x == from_player.x && player.y == from_player.y && player.z == from_player.z
-        player.notify(text)
-      end
-    end
-  end
-
   def start
     World::Manager.repopulate_creatures
     init_global_creature_respawner
@@ -101,7 +93,7 @@ class Init
 
           begin
             Lands.new.start_game(client)
-          rescue IOError
+          rescue Errno::ECONNRESET, Errno::EPIPE, EOFError, IOError, SystemCallError
             World::Manager.logout_player(op.player)
             thread.exit
           end
@@ -151,7 +143,7 @@ class Init
     Thread.new do
       ActiveRecord::Base.connection_pool.with_connection do
         loop do
-          sleep 60
+          sleep 10
           restock_shops
         end
       end

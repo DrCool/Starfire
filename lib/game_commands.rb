@@ -1044,7 +1044,8 @@ module GameCommands
 	end
 
 	def hit(text)
-		print "Hit who?" and return if text == ""
+    text = text.strip
+		print "Hit who or what?" and return if text == ""
 
 		entity = find_entity_in_room(text)
 		if entity.nil?

@@ -306,7 +306,6 @@ module World
       step_label = "Next Step #{next_step.step_number}: #{next_step.name}".strip
       print "#{$pastel.bright_cyan(step_label)}"
       print " - #{$pastel.yellow(next_description)}\n"
-      puts "HERE"
 
       if defined?(World::Manager)
         World::Manager.notify_room(@character.name, "#{@character.name} completed a quest step: #{step_summary}", @character.x, @character.y, @character.z)
@@ -323,7 +322,7 @@ module World
       return unless @character.respond_to?(:client) && @character.client
 
       @character.client.puts(Lands.word_wrap(text) + "\r")
-    rescue IOError
+    rescue Errno::ECONNRESET, Errno::EPIPE, EOFError, IOError, SystemCallError
       @character.logout_player if @character.respond_to?(:logout_player)
     end
 
