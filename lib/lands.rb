@@ -777,6 +777,7 @@ class Lands
 
 
   def show_prompt
+    puts caller(0...6).join("\n")
     print_hold ("\e[38;5;14m\e[1m> \e[0m") # light blue prompt
   end
   def self.show_prompt

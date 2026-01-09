@@ -1421,7 +1421,7 @@ module GameCommands
 
     drop_corpse_items(corpse)
     corpse.destroy
-    print "You search the corpse."
+    print "You search the corpse.\n"
     print_location
   end
 

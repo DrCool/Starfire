@@ -62,7 +62,7 @@ module World
     def advance_objectives(objective_type:, target_type:, room_id:, target_id: nil, quest_id: nil, metadata: {}, mark_complete: false)
       return 0 unless defined?(CharacterQuest) && defined?(QuestObjective)
 
-      active_quests = CharacterQuest.where(character_quest_fk_column => @character.id, state: "active")
+      active_quests = CharacterQuest.where(character_id: @character.id, state: "active")
       active_quests = active_quests.where(quest_id: quest_id) if quest_id.present?
       return 0 if active_quests.empty?
 
@@ -112,15 +112,15 @@ module World
           next if completed
 
           if mark_complete
-            cqo.current_count = obj.required_count.to_i if cqo.respond_to?(:current_count=)
+            cqo.current_count = obj.required_count.to_i
           else
-            current = cqo.respond_to?(:current_count) ? cqo.current_count.to_i : 0
-            cqo.current_count = current + 1 if cqo.respond_to?(:current_count=)
+            current = cqo.current_count.to_i
+            cqo.current_count = current + 1
           end
 
-          if cqo.respond_to?(:current_count) && obj.required_count.to_i <= cqo.current_count.to_i
+          if obj.required_count.to_i <= cqo.current_count.to_i
             cqo.send("#{completion_column}=", completion_value(true)) if completion_column
-            cqo.completed_at = Time.now if cqo.respond_to?(:completed_at=)
+            cqo.completed_at = Time.now
           end
 
           cqo.save!
@@ -258,16 +258,9 @@ module World
     end
 
     def completion_value(flag)
-      return true if CharacterQuestObjective.columns_hash[objective_completion_column]&.type == :boolean
+      return true if CharacterQuestObjective.columns_hash['is_completed']&.type == :boolean
 
       flag ? 1 : 0
-    end
-
-    def character_quest_fk_column
-      return :player_character_id if CharacterQuest.column_names.include?("player_character_id")
-      return :character_id if CharacterQuest.column_names.include?("character_id")
-
-      :player_character_id
     end
 
     def parse_parameters(parameters_json)
@@ -283,11 +276,7 @@ module World
 
       accomplished = step.description.to_s.strip
       accomplished = "Step #{step.step_number} - #{step.name}." if accomplished.empty?
-      step_summary = if accomplished.downcase.include?("kill 5 dust skitters")
-                       "Accomplished: Kill 5 Dust Skitters."
-                     else
-                       "Accomplished: #{accomplished}"
-                     end
+      step_summary = accomplished
 
       print "#{$pastel.bright_green('Quest step complete!')} #{$pastel.green(step_summary)}"
 
@@ -297,29 +286,8 @@ module World
       print "#{$pastel.bright_cyan(step_label)}"
       print " - #{$pastel.yellow(next_description)}"
 
-      emit_room_literal(@character.room_id, "#{@character.name} completed a quest step: #{step_summary}")
+      notify_room(@player, "#{@character.name} completed a quest step: #{step_summary}", @character.x, @character.y, @character.z)
     end
 
-    def emit_room_literal(room_id, message)
-      return if room_id.nil?
-      return unless defined?(Room) && defined?(Event)
-
-      room = Room.find_by(id: room_id)
-      return if room.nil?
-
-      World::Manager.room_event(Event.new({
-        action: ACTION_LITERAL,
-        room: room,
-        message: message,
-        data: { room_id: room_id },
-        sender_type: SENDER_TYPE_ROOM
-      }))
-    end
-
-    def print(text)
-      return unless @character.respond_to?(:client) && @character.client
-
-      @character.send(:print, text)
-    end
   end
 end
