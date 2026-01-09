@@ -10,6 +10,7 @@ require_relative '../model/quest_prerequisite'
 require_relative '../model/quest_objective'
 require_relative '../model/quest_reward'
 require_relative '../model/quest_step'
+require_relative '../model/prop'
 require_relative 'quest_progression'
 
 module GameCommands
@@ -251,7 +252,8 @@ module GameCommands
     when "exa", "examine"
     		entity = find_entity_in_room(text)
         if entity.present?
-          check_for_quest_objective("examine", text)
+          prop = entity[:type] == :prop ? entity[:entity] : nil
+          check_for_quest_objective("examine", text, prop: prop)
           case entity[:type]
             when :npc
               npc = entity[:entity]
@@ -644,6 +646,37 @@ module GameCommands
   rescue => e
     print "Could not complete that quest."
     print "Error: #{e.message}"
+  end
+
+  def check_for_quest_objective(action, text, context = {})
+    return if action.to_s.strip.empty?
+    return unless defined?(World::QuestProgression)
+    return unless quests_table_exists?("character_quests")
+    return unless quests_table_exists?("quest_objectives")
+
+    case action.to_s
+    when "examine"
+      prop = context[:prop] || resolve_prop_in_room(text)
+      return if prop.nil?
+
+      progress = World::QuestProgression.new(@player)
+      updates = progress.handle_examine(target: prop, room_id: @room&.id)
+      print $pastel.green("Journal updated.") if updates.to_i > 0
+    end
+  end
+
+  def resolve_prop_in_room(text)
+    return nil if text.to_s.strip.empty?
+    return nil unless defined?(Prop)
+
+    downcased = text.to_s.downcase
+    if @room.respond_to?(:props)
+      @room.props.find { |prop| prop.name.to_s.downcase.include?(downcased) }
+    else
+      Prop.where(room_id: @room.id)
+          .where("LOWER(name) LIKE ?", "%#{downcased}%")
+          .first
+    end
   end
 
   def journal(text)

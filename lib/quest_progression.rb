@@ -41,6 +41,21 @@ module World
       )
     end
 
+    def handle_examine(target:, room_id:)
+      return unless player_character?
+
+      target_id = target.respond_to?(:id) ? target.id.to_s : target.to_s
+      metadata = { prop_name: target.respond_to?(:name) ? target.name.to_s : nil }
+
+      advance_objectives(
+        objective_type: "examine",
+        target_type: "prop",
+        target_id: target_id,
+        room_id: room_id,
+        metadata: metadata
+      )
+    end
+
     def handle_turn_in(quest_id:, room_id:)
       return 0 unless player_character?
 
@@ -96,6 +111,12 @@ module World
             expected = params["expected_text"].to_s.strip.downcase
             heard = metadata[:text].to_s.strip.downcase
             next unless expected == heard
+          end
+
+          if params["prop_name"].present?
+            expected = params["prop_name"].to_s.strip.downcase
+            actual = metadata[:prop_name].to_s.strip.downcase
+            next if actual.empty? || !actual.include?(expected)
           end
 
           if params["requires_previous_steps_complete"].to_i == 1

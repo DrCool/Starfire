@@ -1609,27 +1609,34 @@ class Lands
 
 
   def find_entity_in_room(name)
+    downcased = name.to_s.downcase
     creatures = @room.creature_instances
     result = creatures.find do |instance|
-      instance.creature_name.downcase.include? name.downcase
+      instance.creature_name.downcase.include? downcased
     end
     return { entity: result, type: :creature } if result.present?
 
     npcs = @room.npc
     result = npcs.find do |npc|
-      npc.npc_name.downcase.include? name.downcase
+      npc.npc_name.downcase.include? downcased
     end
     ap result
     return { entity: result, type: :npc } if result.present?
 
     players = @room.player_characters
     result = players.find do |player|
-      player.name.downcase.include? name.downcase
+      player.name.downcase.include? downcased
     end
     return { entity: result, type: :player } if result.present?
 
     room_item = find_room_item(name)
     return room_item if room_item.present?
+
+    props = @room.respond_to?(:props) ? @room.props : Prop.where(room_id: @room.id)
+    result = props.find do |prop|
+      prop.name.to_s.downcase.include? downcased
+    end
+    return { entity: result, type: :prop } if result.present?
   end
 
   def find_room_item(name)
