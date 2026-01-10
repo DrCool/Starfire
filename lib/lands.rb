@@ -433,6 +433,74 @@ class Lands
       # Grab the next byte as a 1-char string
       ch = data.getbyte(i)
 
+      # --- Telnet negotiation bytes (IAC sequences) ---
+      # Some clients send NAWS (window size) updates when the terminal is resized.
+      # If we don't consume these, they show up as garbage characters and corrupt commands.
+      if ch == IAC
+        cmd = data.getbyte(i + 1)
+        break if cmd.nil?
+
+        # Subnegotiation: IAC SB <opt> ... IAC SE
+        if cmd == SB
+          opt = data.getbyte(i + 2)
+          break if opt.nil?
+
+          if opt == TELOPT_NAWS
+            # Expect: IAC SB NAWS w1 w2 h1 h2 IAC SE
+            if (i + 8) < data.bytesize && data.getbyte(i + 7) == IAC && data.getbyte(i + 8) == SE
+              w1 = data.getbyte(i + 3)
+              w2 = data.getbyte(i + 4)
+              h1 = data.getbyte(i + 5)
+              h2 = data.getbyte(i + 6)
+
+              cols = (w1 << 8) + w2
+              rows = (h1 << 8) + h2
+              cols = 80 if cols <= 0
+              rows = 24 if rows <= 0
+
+              @screen_params ||= {}
+              @screen_params[:cols] = cols
+              @screen_params[:rows] = rows
+
+              i += 9
+              next
+            else
+              # If the buffer doesn't contain the full NAWS sequence yet, stop and wait for more bytes.
+              break
+            end
+          else
+            # Unknown subnegotiation: consume until IAC SE if present in this buffer
+            j = i + 2
+            while (j + 1) < data.bytesize
+              if data.getbyte(j) == IAC && data.getbyte(j + 1) == SE
+                i = j + 2
+                break
+              end
+              j += 1
+            end
+            # If we didn't find IAC SE, stop and wait for more bytes
+            break if i < j
+            next
+          end
+        end
+
+        # Simple negotiation commands are 3 bytes: IAC <cmd> <opt>
+        if [DO, WILL, 252, 254].include?(cmd) # DO, WILL, WONT(252), DONT(254)
+          i += 3
+          next
+        end
+
+        # Escaped 255 (IAC IAC) means literal 255 data byte; ignore it
+        if cmd == IAC
+          i += 2
+          next
+        end
+
+        # Fallback: skip the IAC byte
+        i += 1
+        next
+      end
+
       # --- Handle ANSI escape sequences for arrow keys, etc. ---
       if ch == 27 # "\e"
         seq = data[i, 3]
@@ -1202,24 +1270,63 @@ class Lands
     load_room
   end
 
-  def board_ship
-    ap Ship.first
-    ap player.room
-    ship = Ship.where(is_automated: true).find { |s| s.docked_at_room?(player.room) }
-    if ship.nil?
+  def board_ship(text = nil)
+    query = text.to_s.strip
+
+    # Find ships docked in the player's current room
+    docked_ships = Ship.select { |s| s.docked_at_room?(@room) }
+
+    if docked_ships.empty?
       print "There is no ship to board here."
       return
+    end
+
+    # If the player typed a ship name (or partial), filter docked ships by that query.
+    if query.present?
+      q = query.downcase
+      matches = docked_ships.select do |s|
+        name = (s.respond_to?(:ship_name) ? s.ship_name : s.name).to_s
+        name.downcase.include?(q)
+      end
+
+      if matches.empty?
+        ship_list = docked_ships.map { |s| (s.respond_to?(:ship_name) ? s.ship_name : s.name).to_s }.join(", ")
+        print "No ship matching '#{query}' is docked here. Ships docked here: #{ship_list}."
+        return
+      end
+
+      if matches.length > 1
+        ship_list = matches.map { |s| (s.respond_to?(:ship_name) ? s.ship_name : s.name).to_s }.join(", ")
+        print "Multiple ships match '#{query}': #{ship_list}. Please be more specific."
+        return
+      end
+
+      ship = matches.first
+    else
+      # No query provided; if multiple ships are docked, ask the player to specify.
+      if docked_ships.length > 1
+        ship_list = docked_ships.map { |s| (s.respond_to?(:ship_name) ? s.ship_name : s.name).to_s }.join(", ")
+        print "Board which ship? Ships docked here: #{ship_list}."
+        return
+      end
+
+      ship = docked_ships.first
     end
 
     home_room_id = ship.home_room_id
     room = Room.find_by(id: home_room_id)
 
-    print "Boarding the #{ship.name}...\n"
+    ship_name = (ship.respond_to?(:ship_name) ? ship.ship_name : ship.name).to_s
+    print "Boarding the #{ship_name}...\n"
 
     # transport player to ship's interior room
-    transport_user(room.x, room.y, room.z,
-      "#{$pastel.bright_yellow(@player.name)} boarded the #{ship.name}.",
-      "#{$pastel.bright_yellow(@player.name)} boarded the #{ship.name}.")
+    transport_user(
+      room.x,
+      room.y,
+      room.z,
+      "#{$pastel.bright_yellow(@player.name)} boarded the #{ship_name}.",
+      "#{$pastel.bright_yellow(@player.name)} boarded the #{ship_name}."
+    )
   end
 
   def leave_ship
@@ -1248,7 +1355,7 @@ class Lands
   end
 
   def stats
-    print $pastel.bright_white("Character Stats for #{$pastel.bright_yellow(@player.name)}")
+    print $pastel.bright_white("\nCharacter Stats for #{$pastel.bright_yellow(@player.name)}\n")
     print "Level: #{@player.level}"
     print "Experience: #{@player.experience}"
     print "Health: #{@player.hp} / #{@player.hitmax}"

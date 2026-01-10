@@ -12,6 +12,7 @@ require_relative '../model/quest_reward'
 require_relative '../model/quest_step'
 require_relative '../model/prop'
 require_relative 'quest_progression'
+require_relative 'map'
 
 module GameCommands
 
@@ -51,9 +52,9 @@ module GameCommands
 
     # Process the simple one-letter commands first so they don't accidentally match a custom room command
     case command
-      when "n", "s", "w", "e", "u", "d"
-        dir command
-        return
+    when "n", "s", "w", "e", "u", "d"
+      dir command
+      return
     end
 
     # Check if custom command is available from the room, an object, or an NPC.
@@ -73,13 +74,13 @@ module GameCommands
           process_response_commands(result["result"])
         end
 
-#        events = result["events"]
-#        # ... process events, if any
-#        if events.present?
-#          events.each do |event|
-#            
-#          end
-#        end
+        #        events = result["events"]
+        #        # ... process events, if any
+        #        if events.present?
+        #          events.each do |event|
+        #
+        #          end
+        #        end
         return
       end
     end
@@ -88,195 +89,198 @@ module GameCommands
     # .....
 
     case command
-      when "quit"
-        @message_thread.exit
-        quit
-      when "form"
-        data = [
-          {
-            name: "Name:      ",
-            type: FIELD_TYPE_STRING,
-            value: {
-              max_display_chars: 15,
-              existing_value: "gun",
-            }
-          },
-          {
-            name: "Value:     ",
-            type: FIELD_TYPE_INTEGER,
-            value: {
-              max_display_chars: 5,
-              existing_value: 25,
-            }
-          },
-          {
-            name: "Weight:    ",
-            type: FIELD_TYPE_INTEGER,
-            value: {
-              max_display_chars: 5,
-              existing_value: 3,
-            }
-          },
-          {
-            name: "Wieldable: ",
-            type: FIELD_TYPE_BOOLEAN,
-            value: {
-              existing_value: false,
-            }
-          },
-          {
-            name: "Wearable:  ",
-            type: FIELD_TYPE_BOOLEAN,
-            value: {
-              existing_value: false,
-            }
-          },
-          {
-            name: " SAVE ",
-            type: FIELD_TYPE_SAVE
-          },
-          {
-            name: " CANCEL ",
-            type: FIELD_TYPE_CANCEL
+    when "quit"
+      @message_thread.exit
+      quit
+    when "form"
+      data = [
+        {
+          name: "Name:      ",
+          type: FIELD_TYPE_STRING,
+          value: {
+            max_display_chars: 15,
+            existing_value: "gun",
           }
-        ]
-        form(data)
+        },
+        {
+          name: "Value:     ",
+          type: FIELD_TYPE_INTEGER,
+          value: {
+            max_display_chars: 5,
+            existing_value: 25,
+          }
+        },
+        {
+          name: "Weight:    ",
+          type: FIELD_TYPE_INTEGER,
+          value: {
+            max_display_chars: 5,
+            existing_value: 3,
+          }
+        },
+        {
+          name: "Wieldable: ",
+          type: FIELD_TYPE_BOOLEAN,
+          value: {
+            existing_value: false,
+          }
+        },
+        {
+          name: "Wearable:  ",
+          type: FIELD_TYPE_BOOLEAN,
+          value: {
+            existing_value: false,
+          }
+        },
+        {
+          name: " SAVE ",
+          type: FIELD_TYPE_SAVE
+        },
+        {
+          name: " CANCEL ",
+          type: FIELD_TYPE_CANCEL
+        }
+      ]
+      form(data)
 
+      return
+    when "test"
+      result = scrolling_menu("Test Question", ["Option 1", "Option 2", "Option 3"])
+      ap "User chose option: #{result}"
+      return
+    when "loc"
+      loc
+      return
+    when "who"
+      who
+      return
+    when "room-say"
+      room_say text
+      return
+    when "look"
+      print_location(verbose: true)
+      return
+    when "inv", "inventory"
+      show_inventory
+      return
+    when "follow"
+      follow text
+      return
+    when "unfollow"
+      unfollow
+      return
+    when "desc"
+      return if text == ""
+      desc text
+      return
+    when "stats"
+      stats
+      return
+    when "map"
+      show_map @room.id, @screen_params
+      return
+    when "board"
+      board_ship text
+      return
+    when "leave"
+      leave_ship
+      return
+    when "reload"
+      load "#{File.dirname(__FILE__)}/lands.rb"
+      load "#{File.dirname(__FILE__)}/game_commands.rb"
+      print "Code reloaded."
+      return
+    when "npc-new"
+      npc_new
+      return
+    when "hit", "attack", "kill"
+      hit text
+      return
+    when "say"
+      say text
+      return
+    when "list"
+      list_shop_items
+      return
+    when "buy"
+      buy_item text
+      return
+    when "sell"
+      sell_item text
+      return
+    when "wield"
+      wield_item text
+      return
+    when "unwield"
+      unwield_item
+      return
+    when "wear"
+      wear_item text
+      return
+    when "remove"
+      remove_item text
+      return
+    when "get"
+      get_item text
+      return
+    when "search"
+      search_item text
+      return
+    when "hea", "health"
+      print "Your health: #{@player.hp} / #{@player.hitmax}"
+      return
+    when "rest"
+      if @player.hp == @player.hitmax
+        print "You are fully rested."
         return
-      when "test"
-        result = scrolling_menu("Test Question", ["Option 1", "Option 2", "Option 3"])
-        ap "User chose option: #{result}"
-        return
-      when "loc"
-        loc
-        return
-      when "who"
-        who
-        return
-      when "room-say"
-        room_say text
-        return
-      when "look"
-        print_location(verbose: true)
-        return
-      when "inv", "inventory"
-        show_inventory
-        return
-      when "follow"
-        follow text
-        return
-      when "unfollow"
-        unfollow
-        return
-      when "desc"
-        return if text == ""
-        desc text
-        return
-      when "stats"
-        stats
-        return
-      when "board"
-        board_ship
-        return
-      when "leave"
-        leave_ship
-        return
-      when "reload"
-        load "#{File.dirname(__FILE__)}/lands.rb"
-        load "#{File.dirname(__FILE__)}/game_commands.rb"
-        print "Code reloaded."
-        return
-      when "npc-new"
-        npc_new
-        return
-      when "hit", "attack", "kill"
-        hit text
-        return
-      when "say"
-        say text
-        return
-      when "list"
-        list_shop_items
-        return
-      when "buy"
-        buy_item text
-        return
-      when "sell"
-        sell_item text
-        return
-      when "wield"
-        wield_item text
-        return
-      when "unwield"
-        unwield_item
-        return
-      when "wear"
-        wear_item text
-        return
-      when "remove"
-        remove_item text
-        return
-      when "get"
-        get_item text
-        return
-      when "search"
-        search_item text
-        return
-      when "hea", "health"
-      	print "Your health: #{@player.hp} / #{@player.hitmax}"
-      	return
-      when "rest"
-      	if @player.hp == @player.hitmax
-      		print "You are fully rested."
-      		return
-      	end
-      	@player.hp += 1
-      	print "You feel more rested."
-      	return
-      when "jobs"
-        if text.to_s.strip == ""
-          list_jobs
-        else
-          show_job_details(text)
-        end
-        return
-      when "accept"
-        accept_quest text
-        return
-      when "journal"
-        journal text
-        return
-      when "complete"
-        complete_quest text
-        return
+      end
+      @player.hp += 1
+      print "You feel more rested."
+      return
+    when "jobs"
+      if text.to_s.strip == ""
+        list_jobs
+      else
+        show_job_details(text)
+      end
+      return
+    when "accept"
+      accept_quest text
+      return
+    when "journal"
+      journal text
+      return
+    when "complete"
+      complete_quest text
+      return
     when "exa", "examine"
-    		entity = find_entity_in_room(text)
-        if entity.present?
-          prop = entity[:type] == :prop ? entity[:entity] : nil
-          check_for_quest_objective("examine", text, prop: prop)
-          case entity[:type]
-            when :npc
-              npc = entity[:entity]
-              print npc.description
-              print "#{npc.npc_name} health: [#{npc.hp} / #{npc.hitmax}]"
-              return
-            when :creature
-              creature_instance = entity[:entity]
-              creature_instance.reload
-              print creature_instance.creature.description
-              print "#{creature_instance.creature_name.capitalize} health: [#{creature_instance.hp} / #{creature_instance.creature.hitmax}]"
-              return
-            when :object
-              return
-            when :prop
-              return
-            when :corpse
-              print "It's a corpse. You can type 'search corpse' to see if it has any items you can take. After typing 'search corpse', the items or credits will appear in the room. Type 'get <item name>' to pick up any items, or 'get all'."
-              return
-          end
+      entity = find_entity_in_room(text)
+      if entity.present?
+        prop = entity[:type] == :prop ? entity[:entity] : nil
+        check_for_quest_objective("examine", text, prop: prop)
+        case entity[:type]
+        when :npc
+          npc = entity[:entity]
+          print npc.description
+          print "#{npc.npc_name} health: [#{npc.hp} / #{npc.hitmax}]"
+          return
+        when :creature
+          creature_instance = entity[:entity]
+          creature_instance.reload
+          print creature_instance.creature.description
+          print "#{creature_instance.creature_name.capitalize} health: [#{creature_instance.hp} / #{creature_instance.creature.hitmax}]"
+          return
+        when :object
+          return
+        when :prop
+          return
+        when :corpse
+          print "It's a corpse. You can type 'search corpse' to see if it has any items you can take. After typing 'search corpse', the items or credits will appear in the room. Type 'get <item name>' to pick up any items, or 'get all'."
+          return
         end
-    		print "There isn't #{vanna(text)} here."
-        return
+      end
+      print "There isn't #{vanna(text)} here."
+      return
     end
 
     if command[0...1] == "."
@@ -289,30 +293,28 @@ module GameCommands
       return
     end
 
+    puts command
     print "Command not understood."
   end
 
+  def quit
+    save_player
+    print $pastel.bright_red("Thanks for playing!")
+    @player.logout_player
+    @client.close
+    Thread.current.exit
+  end
 
+  def loc
+    print "You are located at #{@player.x} / #{@player.y} / #{@player.z}."
+  end
 
-
-	def quit
-		save_player
-		print $pastel.bright_red("Thanks for playing!")
-		@player.logout_player
-		@client.close
-		Thread.current.exit
-	end
-
-	def loc
-		print "You are located at #{@player.x} / #{@player.y} / #{@player.z}."
-	end
-
-	def who
-		who = User.get_logged_in_users
-		who = who.pluck(:name)
-		print "CURRENTLY ONLINE:"
-		print "* " + who.join("\n\r* ")
-	end
+  def who
+    who = User.get_logged_in_users
+    who = who.pluck(:name)
+    print "CURRENTLY ONLINE:"
+    print "* " + who.join("\n\r* ")
+  end
 
   # List jobs/quests at the current board
   def list_jobs
@@ -324,12 +326,12 @@ module GameCommands
     level = @player.level.to_i
 
     quests = Quest
-      .where(is_active: 1, start_room_id: @room.id)
-      .where("min_level IS NULL OR min_level <= ?", level)
-      .where("max_level IS NULL OR max_level >= ?", level)
-      .order(Arel.sql("COALESCE(min_level, 0) ASC"))
-      .order(:id)
-      .to_a
+               .where(is_active: 1, start_room_id: @room.id)
+               .where("min_level IS NULL OR min_level <= ?", level)
+               .where("max_level IS NULL OR max_level >= ?", level)
+               .order(Arel.sql("COALESCE(min_level, 0) ASC"))
+               .order(:id)
+               .to_a
 
     # Apply prerequisites if the table exists.
     if quests_table_exists?("quest_prerequisites")
@@ -655,13 +657,13 @@ module GameCommands
     return unless quests_table_exists?("quest_objectives")
 
     case action.to_s
-      when "examine"
-        prop = context[:prop] || resolve_prop_in_room(text)
-        return if prop.nil?
+    when "examine"
+      prop = context[:prop] || resolve_prop_in_room(text)
+      return if prop.nil?
 
-        progress = World::QuestProgression.new(@player)
-        updates = progress.handle_examine(target: prop, room_id: @room&.id)
-        print $pastel.green("Journal updated.") if updates.to_i > 0
+      progress = World::QuestProgression.new(@player)
+      updates = progress.handle_examine(target: prop, room_id: @room&.id)
+      print $pastel.green("Journal updated.") if updates.to_i > 0
     end
   end
 
@@ -877,9 +879,9 @@ module GameCommands
 
   def objective_completion_column
     return "is_completed" if defined?(CharacterQuestObjective) &&
-      CharacterQuestObjective.column_names.include?("is_completed")
+                             CharacterQuestObjective.column_names.include?("is_completed")
     return "is_complete" if defined?(CharacterQuestObjective) &&
-      CharacterQuestObjective.column_names.include?("is_complete")
+                            CharacterQuestObjective.column_names.include?("is_complete")
 
     nil
   end
@@ -1039,42 +1041,42 @@ module GameCommands
     nil
   end
 
-	def save_player
-		@player.save
-	end
+  def save_player
+    @player.save
+  end
 
-	def hit(text)
+  def hit(text)
     text = text.strip
-		print "Hit who or what?" and return if text == ""
+    print "Hit who or what?" and return if text == ""
 
-		entity = find_entity_in_room(text)
-		if entity.nil?
-			print "There isn't #{vanna(text)} here."
-		else
-			recipient_type = entity[:type]
-			if recipient_type == :creature
-				entity = entity[:entity]
-				@player.attack entity, recipient_type
+    entity = find_entity_in_room(text)
+    if entity.nil?
+      print "There isn't #{vanna(text)} here."
+    else
+      recipient_type = entity[:type]
+      if recipient_type == :creature
+        entity = entity[:entity]
+        @player.attack entity, recipient_type
       elsif recipient_type == :npc
         npc = entity[:entity]
         print npc.not_attackable_message and return if not npc.attackable
-			else
-				print "You can't attack that."
-			end
-		end
-	end
+      else
+        print "You can't attack that."
+      end
+    end
+  end
 
   def say(text)
     World::Manager.room_event(Event.new({
-      action: ACTION_SAY,
-      room: self.room,
-      data: { sender_name: @player.name, text: text },
-      player: @player,
-      sender_type: SENDER_TYPE_PLAYER
-    }))
+                                          action: ACTION_SAY,
+                                          room: self.room,
+                                          data: { sender_name: @player.name, text: text },
+                                          player: @player,
+                                          sender_type: SENDER_TYPE_PLAYER
+                                        }))
     @client.print "\e[2K\r" # erase current line
     print_hold "You say, \"#{$pastel.cyan(text)}\"."
-	end
+  end
 
   def list_shop_items
     shop = shop_in_room
@@ -1548,6 +1550,5 @@ module GameCommands
       item.update!(owner_type: new_owner_type, owner_id: new_owner_id)
     end
   end
-
 
 end
