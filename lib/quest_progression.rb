@@ -303,7 +303,7 @@ module World
 
       next_description = next_step.description.to_s.strip
       next_description = "Step #{next_step.step_number} - #{next_step.name}." if next_description.empty?
-      step_label = "Next Step #{next_step.step_number}: #{next_step.name}".strip
+      step_label = "Next Step: #{next_step.name}".strip
       print "#{$pastel.bright_cyan(step_label)}"
       print " - #{$pastel.yellow(next_description)}\n"
 

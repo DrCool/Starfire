@@ -100,6 +100,16 @@ module World
     #   ap response
     #   JSON.parse(response) if response.present?
     # end
+    def logout_player(player)
+      World::Manager.room_event(Event.new({
+                                            action: ACTION_EXIT_GAME,
+                                            room: player.room,
+                                            message: "#{$pastel.bright_yellow(player.name)} left the game.",
+                                            player: player
+                                          }))
+
+      $online_players = $online_players.reject { |p| player.name == p.get_player.name }
+    end
 
     def self.build_payload(player, code)
       {

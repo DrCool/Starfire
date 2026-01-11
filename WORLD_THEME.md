@@ -1,4 +1,4 @@
-Starfire is a galaxy powered by old stars, old machines, and old decisions—kept alive by people willing to deal with what still works.
+The game of Starfire takes place in a galaxy powered by old stars, old machines, and old decisions—kept alive by people willing to deal with what still works.
 
 # The Galaxy, the Continuum, and the Long War
 

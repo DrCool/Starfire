@@ -363,6 +363,7 @@ class Lands
 
 
   def print_hold(text)
+    # Print text to the telnet client without adding a newline at the end.
     return if text.nil?
     begin
       @client.print(text)
@@ -386,7 +387,9 @@ class Lands
   def get_line(simple_mode = false)
     line = ""
     if simple_mode
-      return @client.gets.chomp.strip
+      text = @client.gets
+      text = text.chomp.strip if text.present?
+      return text
     else
       while true
         char = @client.recvfrom(3)
