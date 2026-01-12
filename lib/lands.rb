@@ -1177,7 +1177,11 @@ class Lands
       sender_type: SENDER_TYPE_PLAYER
     }))
 
-    check_for_quest_objective "visit", "room", @room.id
+    check_for_quest_objective({
+      objective_type: "visit",
+      target_type: "room",
+      target_id: @room.id
+    })
 
     print_location
   end

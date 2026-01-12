@@ -1,3 +1,7 @@
+require 'json'
+require_relative '../model/inventory_item'
+require_relative '../model/game_object'
+
 # List quests at the current board
 def list_quests
   unless @room.room_type_id.to_i == 5
@@ -333,32 +337,135 @@ rescue => e
   print "Error: #{e.message}"
 end
 
-def check_for_quest_objective(details = {})
+def check_for_quest_objective(details = {}, target_type = nil, target_id = nil)
+  if !details.is_a?(Hash)
+    details = {
+      objective_type: details,
+      target_type: target_type,
+      target_id: target_id
+    }
+  end
+
   objective_type = details[:objective_type].to_s
   target_type = details[:target_type].to_s
   command_text = details[:command_text].to_s
   action = objective_type.to_s
-  if target_type == "prop"
-    prop = details[:prop] || resolve_prop_in_room(command_text)
-  end
+  prop = details[:prop] || resolve_prop_in_room(command_text) if target_type == "prop"
+  obj = details[:object] || details[:item] if target_type == "object"
 
   return if action.strip.empty?
   return unless defined?(World::QuestProgression)
 
   case action.to_s
   when "examine"
-    return if prop.nil?
+    if target_type == "object"
+      return if obj.nil?
 
-    progress = World::QuestProgression.new(@player)
-    updates = progress.handle_examine(target: prop, room_id: @room&.id)
-    print $pastel.green("Journal updated.") if updates.to_i > 0
+      progress = World::QuestProgression.new(@player)
+      updates = progress.handle_examine(target: obj, room_id: @room&.id, target_type: "object")
+      print $pastel.green("Journal updated.") if updates.to_i > 0
+    else
+      return if prop.nil?
+
+      progress = World::QuestProgression.new(@player)
+      updates = progress.handle_examine(target: prop, room_id: @room&.id, target_type: "prop")
+      print $pastel.green("Journal updated.") if updates.to_i > 0
+    end
   when "visit"
     if target_type == "room"
+      ensure_room_quest_objects(@room&.id)
       progress = World::QuestProgression.new(@player)
       updates = progress.handle_visit(room_id: @room&.id)
       print $pastel.green("Journal updated.") if updates.to_i > 0
     end
+  when "collect"
+    return if obj.nil?
+
+    progress = World::QuestProgression.new(@player)
+    updates = progress.handle_collect(item: obj, room_id: @room&.id)
+    print $pastel.green("Journal updated.") if updates.to_i > 0
+  when "deliver"
+    return if details[:npc].nil? || obj.nil?
+
+    progress = World::QuestProgression.new(@player)
+    result = progress.handle_deliver(
+      npc_id: details[:npc].id,
+      room_id: @room&.id,
+      item: obj
+    )
+    print $pastel.green("Journal updated.") if result[:updates].to_i > 0
   end
+end
+
+def ensure_room_quest_objects(room_id)
+  return if room_id.nil?
+  return unless defined?(CharacterQuest) && defined?(QuestObjective)
+
+  active_character_quests.each do |cq|
+    step = current_step_for(cq)
+    next if step.nil?
+
+    objectives = QuestObjective.where(
+      quest_id: cq.quest_id,
+      step_id: step.id,
+      objective_type: "examine",
+      target_type: "object"
+    )
+
+    objectives.each do |obj|
+      next unless objective_matches_room?(obj, room_id)
+
+      params = parse_parameters(obj.parameters_json)
+      object_id = params["item_object_id"].to_i if params["item_object_id"].present?
+      object_id = obj.target_id.to_i if object_id.to_i <= 0 && obj.target_id.to_s =~ /^\d+$/
+      object_id = object_id if object_id.to_i > 0
+
+      match_name = params["match_name"].presence || obj.target_id.to_s
+      match_name = nil if match_name.to_s =~ /^\d+$/
+
+      item_exists = if object_id.to_i > 0
+                      InventoryItem.where(owner_type: "Room", owner_id: room_id, object_id: object_id).exists?
+                    else
+                      InventoryItem.joins(:game_object)
+                                   .where(owner_type: "Room", owner_id: room_id)
+                                   .where("LOWER(objects.name) LIKE ?", "%#{match_name.to_s.downcase}%")
+                                   .exists?
+                    end
+
+      next if item_exists
+
+      game_object = if object_id.to_i > 0
+                      GameObject.find_by(id: object_id)
+                    elsif match_name.present?
+                      GameObject.where("LOWER(name) LIKE ?", "%#{match_name.to_s.downcase}%").first
+                    end
+
+      next if game_object.nil?
+
+      InventoryItem.create!(
+        owner_type: "Room",
+        owner_id: room_id,
+        object_id: game_object.id,
+        quantity: 1
+      )
+    end
+  end
+end
+
+def objective_matches_room?(objective, room_id)
+  return false if room_id.nil?
+
+  if objective.target_room_id.present?
+    return false unless objective.target_room_id.to_i == room_id.to_i
+  end
+
+  params = parse_parameters(objective.parameters_json)
+  if params["allowed_room_ids"].present?
+    allowed = params["allowed_room_ids"].map(&:to_i)
+    return false unless allowed.include?(room_id.to_i)
+  end
+
+  true
 end
 
 def journal(text)
@@ -611,6 +718,14 @@ rescue
   false
 end
 
+def parse_parameters(parameters_json)
+  return {} if parameters_json.blank?
+
+  JSON.parse(parameters_json.to_s)
+rescue JSON::ParserError
+  {}
+end
+
 def character_quest_fk_column
   return :player_character_id if defined?(CharacterQuest) && CharacterQuest.column_names.include?("player_character_id")
   return :character_id if defined?(CharacterQuest) && CharacterQuest.column_names.include?("character_id")
@@ -712,4 +827,3 @@ def fetch_quest_rewards_summary(quest_id)
 rescue
   nil
 end
-

@@ -8,6 +8,7 @@ require_relative '../model/quest_objective'
 require_relative '../model/quest_reward'
 require_relative '../model/quest_step'
 require_relative '../model/room'
+require_relative '../model/npc'
 require_relative '../model/event'
 
 module World
@@ -41,15 +42,25 @@ module World
       )
     end
 
-    def handle_examine(target:, room_id:)
+    def handle_examine(target:, room_id:, target_type: "prop")
       return unless player_character?
 
       target_id = target.respond_to?(:id) ? target.id.to_s : target.to_s
       metadata = { prop_name: target.respond_to?(:name) ? target.name.to_s : nil }
 
+      if target.respond_to?(:game_object)
+        obj = target.game_object
+        target_id = obj&.id&.to_s || target_id
+        metadata[:object_name] = obj&.name.to_s
+        metadata[:object_id] = obj&.id
+      elsif target.respond_to?(:item_type) || target.respond_to?(:description)
+        metadata[:object_name] = target.respond_to?(:name) ? target.name.to_s : nil
+        metadata[:object_id] = target.respond_to?(:id) ? target.id : nil
+      end
+
       advance_objectives(
         objective_type: "examine",
-        target_type: "prop",
+        target_type: target_type,
         target_id: target_id,
         room_id: room_id,
         metadata: metadata
@@ -59,16 +70,117 @@ module World
     def handle_visit(room_id:)
       return unless player_character?
 
-      target_id = target.respond_to?(:id) ? target.id.to_s : target.to_s
-      metadata = { prop_name: target.respond_to?(:name) ? target.name.to_s : nil }
+      target_id = room_id&.to_s
 
       advance_objectives(
         objective_type: "visit",
         target_type: "room",
         target_id: target_id,
         room_id: room_id,
+        metadata: {}
+      )
+    end
+
+    def handle_collect(item:, room_id:)
+      return unless player_character?
+
+      obj = item.respond_to?(:game_object) ? item.game_object : item
+      target_id = obj&.id&.to_s || item&.id&.to_s
+      metadata = {
+        object_name: obj&.name.to_s,
+        object_id: obj&.id
+      }
+
+      advance_objectives(
+        objective_type: "collect",
+        target_type: "object",
+        target_id: target_id,
+        room_id: room_id,
         metadata: metadata
       )
+    end
+
+    def handle_deliver(npc_id:, room_id:, item:)
+      return { updates: 0, consume_item: false } unless player_character?
+
+      obj = item.respond_to?(:game_object) ? item.game_object : item
+      target_id = npc_id.to_s
+      metadata = {
+        object_name: obj&.name.to_s,
+        object_id: obj&.id
+      }
+
+      consume_item = false
+
+      updates = advance_objectives(
+        objective_type: "deliver",
+        target_type: "npc",
+        target_id: target_id,
+        room_id: room_id,
+        metadata: metadata
+      ) do |completed_obj|
+        params = parse_parameters(completed_obj.parameters_json)
+        consume_item ||= params["consume_item_on_complete"].to_i == 1
+      end
+
+      { updates: updates, consume_item: consume_item }
+    end
+
+    def say_hint(room_id:, text:)
+      return nil unless player_character?
+      return nil unless defined?(CharacterQuest) && defined?(QuestObjective)
+
+      active_quests = CharacterQuest.where(character_id: @character.id, state: "active")
+      return nil if active_quests.empty?
+
+      active_quests.each do |cq|
+        step = current_step_for(cq)
+        next if step.nil?
+
+        objectives = QuestObjective.where(
+          quest_id: cq.quest_id,
+          step_id: step.id,
+          objective_type: "say"
+        )
+
+        objectives.each do |obj|
+          next if obj.target_type.present? && obj.target_type.to_s != "npc"
+          next if obj.target_room_id.present? && room_id.present? && obj.target_room_id.to_i != room_id.to_i
+          next if obj.target_room_id.present? && room_id.nil?
+
+          params = parse_parameters(obj.parameters_json)
+          if params["allowed_room_ids"].present?
+            allowed = params["allowed_room_ids"].map(&:to_i)
+            next if room_id.nil? || !allowed.include?(room_id.to_i)
+          end
+
+          hint = params["dialog_hint"].to_s.strip
+          next if hint.empty?
+
+          if params["expected_text"].present?
+            expected = params["expected_text"].to_s.strip.downcase
+            heard = text.to_s.strip.downcase
+            next if expected == heard
+          end
+
+          if obj.target_id.present? && room_id.present?
+            npc = NPC.find_by(id: obj.target_id.to_i)
+            next if npc.nil? || npc.room_id.to_i != room_id.to_i
+          end
+
+          if defined?(CharacterQuestObjective)
+            cqo = CharacterQuestObjective.find_by(
+              character_quest_id: cq.id,
+              quest_objective_id: obj.id
+            )
+            next if cqo && objective_completion_column && objective_completed?(cqo, objective_completion_column)
+          end
+
+          return hint
+        end
+      end
+
+      nil
     end
 
     def handle_turn_in(quest_id:, room_id:)
@@ -110,7 +222,15 @@ module World
 
         objectives.each do |obj|
           next if obj.target_type.present? && obj.target_type.to_s != target_type.to_s
-          next if obj.target_id.present? && target_id.present? && obj.target_id.to_s != target_id.to_s
+          if obj.target_id.present? && target_id.present? && obj.target_id.to_s != target_id.to_s
+            if target_type.to_s == "object" && metadata[:object_name].present?
+              expected = obj.target_id.to_s.strip.downcase
+              actual = metadata[:object_name].to_s.strip.downcase
+              next unless actual.include?(expected)
+            else
+              next
+            end
+          end
           next if obj.target_id.present? && target_id.nil?
 
           next if obj.target_room_id.present? && room_id.present? && obj.target_room_id.to_i != room_id.to_i
@@ -134,6 +254,19 @@ module World
             next if actual.empty? || !actual.include?(expected)
           end
 
+          if params["match_name"].present?
+            expected = params["match_name"].to_s.strip.downcase
+            actual = metadata[:object_name].to_s.strip.downcase
+            actual = metadata[:prop_name].to_s.strip.downcase if actual.empty?
+            next if actual.empty? || !actual.include?(expected)
+          end
+
+          if params["item_object_id"].present?
+            item_id = params["item_object_id"].to_i
+            actual_id = metadata[:object_id].to_i
+            next if item_id <= 0 || actual_id <= 0 || item_id != actual_id
+          end
+
           if params["requires_previous_steps_complete"].to_i == 1
             next unless previous_steps_complete?(cq, step.step_number.to_i)
           end
@@ -154,15 +287,22 @@ module World
             cqo.current_count = current + 1
           end
 
+          completed_now = false
           if obj.required_count.to_i <= cqo.current_count.to_i
             cqo.send("#{completion_column}=", completion_value(true)) if completion_column
             cqo.completed_at = Time.now
+            completed_now = true
           end
 
           cqo.save!
 
           cq.last_progress_at = Time.now if cq.respond_to?(:last_progress_at=)
           cq.save!
+          if completed_now
+            notify_npc_saying(obj, room_id)
+            yield obj if block_given?
+          end
+
           updates += 1
         end
 
@@ -325,6 +465,17 @@ module World
       if defined?(World::Manager)
         World::Manager.notify_room(@character.name, "#{@character.name} completed a quest step: #{step_summary}", @character.x, @character.y, @character.z)
       end
+    end
+
+    def notify_npc_saying(objective, room_id)
+      return unless objective.npc_saying.present?
+      return unless objective.target_type.to_s == "npc"
+      return if room_id.nil?
+
+      npc = NPC.find_by(id: objective.target_id.to_i)
+      return if npc.nil? || npc.room_id.to_i != room_id.to_i
+
+      print objective.npc_saying
     end
 
 

@@ -227,6 +227,12 @@ module GameCommands
     when "get"
       get_item text
       return
+    when "drop"
+      drop_item text
+      return
+    when "give"
+      give_item text
+      return
     when "search"
       search_item text
       return
@@ -263,13 +269,15 @@ module GameCommands
     when "exa", "examine"
       entity = find_entity_in_room(text)
       if entity.present?
-        prop = entity[:type] == :prop ? entity[:entity] : nil
-        check_for_quest_objective({
-            objective_type: "examine",
-            target_type: "prop",
-            command_text: text,
-            prop_details: prop
-        })
+        if [:prop, :object].include?(entity[:type])
+          check_for_quest_objective({
+              objective_type: "examine",
+              target_type: entity[:type] == :object ? "object" : "prop",
+              command_text: text,
+              prop: (entity[:type] == :prop ? entity[:entity] : nil),
+              object: (entity[:type] == :object ? entity[:entity] : nil)
+          })
+        end
         case entity[:type]
         when :npc
           npc = entity[:entity]
@@ -384,6 +392,9 @@ module GameCommands
                                         }))
     @client.print "\e[2K\r" # erase current line
     print_hold "You say, \"#{$pastel.cyan(text)}\"."
+
+    hint = World::QuestProgression.new(@player).say_hint(room_id: @room&.id, text: text)
+    print "(#{hint})" if hint.present?
   end
 
   def list_shop_items
@@ -804,6 +815,105 @@ module GameCommands
     take_room_item(inventory_item[:entity])
   end
 
+  def drop_item(text)
+    if text.strip == ""
+      print "Drop what?"
+      return
+    end
+
+    item = find_player_item(text)
+    if item.nil?
+      print "You aren't carrying that."
+      return
+    end
+
+    obj = item.game_object
+    if obj.nil?
+      print "You can't drop that."
+      return
+    end
+
+    drop_inventory_item(item, "Room", @room.id)
+    print "You drop #{obj.name}."
+
+    room_npcs = @room.respond_to?(:npc) ? @room.npc : []
+    room_npcs.each do |npc|
+      result = World::QuestProgression.new(@player).handle_deliver(
+        npc_id: npc.id,
+        room_id: @room.id,
+        item: obj
+      )
+
+      next unless result[:updates].to_i > 0
+
+      print $pastel.green("Journal updated.")
+      if result[:consume_item]
+        dropped_item = InventoryItem.where(
+          owner_type: "Room",
+          owner_id: @room.id,
+          object_id: obj.id
+        ).order(:id).first
+        dropped_item&.destroy
+      end
+      break
+    end
+  end
+
+  def give_item(text)
+    if text.strip == ""
+      print "Give what to whom?"
+      return
+    end
+
+    match = text.match(/\A(.+?)\s+to\s+(.+)\z/i)
+    if match
+      item_name = match[1]
+      npc_name = match[2]
+    else
+      parts = text.split(" ")
+      if parts.size < 2
+        print "Give what to whom?"
+        return
+      end
+      item_name = parts[0..-2].join(" ")
+      npc_name = parts[-1]
+    end
+
+    entity = find_entity_in_room(npc_name)
+    if entity.nil? || entity[:type] != :npc
+      print "#{vanna(npc_name)} isn't here."
+      return
+    end
+
+    npc = entity[:entity]
+    item = find_player_item(item_name)
+    if item.nil?
+      print "You aren't carrying that."
+      return
+    end
+
+    obj = item.game_object
+    if obj.nil?
+      print "#{npc.npc_name} doesn't want that."
+      return
+    end
+
+    result = World::QuestProgression.new(@player).handle_deliver(
+      npc_id: npc.id,
+      room_id: @room.id,
+      item: obj
+    )
+
+    if result[:updates].to_i > 0
+      print $pastel.green("Journal updated.")
+      deduct_player_item(item, 1) if result[:consume_item]
+    else
+      deduct_player_item(item, 1)
+    end
+
+    print "You give #{obj.name} to #{npc.npc_name}."
+  end
+
   def get_all_items
     picked_any = false
 
@@ -967,6 +1077,11 @@ module GameCommands
 
     drop_inventory_item(item, "PlayerCharacter", @player.id)
     print "You pick up #{obj.name}."
+    check_for_quest_objective({
+      objective_type: "collect",
+      target_type: "object",
+      object: obj
+    })
   end
 
   def drop_inventory_item(item, new_owner_type, new_owner_id)
