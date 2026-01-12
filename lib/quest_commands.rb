@@ -333,20 +333,31 @@ rescue => e
   print "Error: #{e.message}"
 end
 
-def check_for_quest_objective(action, text, context = {})
-  return if action.to_s.strip.empty?
+def check_for_quest_objective(details = {})
+  objective_type = details[:objective_type].to_s
+  target_type = details[:target_type].to_s
+  command_text = details[:command_text].to_s
+  action = objective_type.to_s
+  if target_type == "prop"
+    prop = details[:prop] || resolve_prop_in_room(command_text)
+  end
+
+  return if action.strip.empty?
   return unless defined?(World::QuestProgression)
-  return unless quests_table_exists?("character_quests")
-  return unless quests_table_exists?("quest_objectives")
 
   case action.to_s
   when "examine"
-    prop = context[:prop] || resolve_prop_in_room(text)
     return if prop.nil?
 
     progress = World::QuestProgression.new(@player)
     updates = progress.handle_examine(target: prop, room_id: @room&.id)
     print $pastel.green("Journal updated.") if updates.to_i > 0
+  when "visit"
+    if target_type == "room"
+      progress = World::QuestProgression.new(@player)
+      updates = progress.handle_visit(room_id: @room&.id)
+      print $pastel.green("Journal updated.") if updates.to_i > 0
+    end
   end
 end
 

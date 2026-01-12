@@ -1,3 +1,5 @@
+require_relative '../model/zone'
+require_relative '../model/room'
 require_relative '../model/quest'
 require_relative '../model/character_quest'
 require_relative '../model/character_flag'
@@ -262,7 +264,12 @@ module GameCommands
       entity = find_entity_in_room(text)
       if entity.present?
         prop = entity[:type] == :prop ? entity[:entity] : nil
-        check_for_quest_objective("examine", text, prop: prop)
+        check_for_quest_objective({
+            objective_type: "examine",
+            target_type: "prop",
+            command_text: text,
+            prop_details: prop
+        })
         case entity[:type]
         when :npc
           npc = entity[:entity]
@@ -816,11 +823,12 @@ module GameCommands
 
   def create_llm_quest
     # Create a prompt that can be copied/pasted to ChatGPT to generate quests
-    # The prompt needs a JSON list of all rooms in this zone, with their IDs and descriptions
     rooms = Room.where(zone_id: @room.zone_id)
     room_list = rooms.map do |r|
       {
-        id: r.id,
+        room_id: r.id,
+        name: r.name,
+        inside_or_outside: r.inside ? "inside" : "outside",
         x: r.x,
         y: r.y,
         z: r.z,
@@ -828,31 +836,66 @@ module GameCommands
       }
     end
 
-    # Now, include the structure of the quests table
-    # This will help the LLM understand how to format the output
-    schema = get_table_schema("quests")
+    mobs = CreatureInstance.joins(:creature)
+                           .where(zone_id: @room.zone_id)
+                           .map do |ci|
+      {
+        id: ci.id,
+        name: ci.creature_name,
+        description: ci.creature.description,
+        hp_max: ci.creature.hitmax,
+        strength: ci.creature.strength,
+        room_id: ci.room_id
+      }
+    end
+
+    npcs = NPC.where(zone_id: @room.zone_id).map do |npc|
+      {
+        creature_id: npc.creature.id,
+        name: npc.npc_name,
+        description: npc.description,
+        room_id: npc.room_id,
+        can_roam_in_zone: npc.can_roam
+      }
+    end
 
     # Load `QUESTS.md` from the project root for additional context
-    quest_details = File.read(File.join(File.dirname(__FILE__), '..', '..', 'QUESTS.md'))
+    quest_details = File.read(File.join(File.dirname(__FILE__), '..', 'QUESTS.md'))
+
+    quest_id = Quest.maximum(:id).to_i + 1
 
     # Build prompt payload for the LLM
     payload = {
       zone: {
         zone_id: @room.zone_id,
+        zone_name: @room.zone.name,
+        zone_description: @room.zone.description,
         rooms: room_list
       },
+      mobs: mobs,
+      npcs: npcs,
       quest_implementation_details: quest_details,
       instructions: [
-        "Return an array of quest objects that match the 'quests' table columns.",
+        "Return an array of quest objects that match the 'quests' table columns. The `quest_id` to use for each supporting table is `quest_id=#{quest_id}`.",
         "Each quest object must include keys for the columns listed in the schema (use null or reasonable defaults when appropriate).",
-        "Where a column refers to a room (by id), prefer ids from the provided rooms list.",
-        "Return strictly JSON (no extra commentary)."
+        "Where a column refers to a room (by id), use IDs from the provided rooms list. NEVER mention room IDs in any player-readable text! Refer to rooms by their room name only.",
       ].join(" ")
     }
 
     prompt_text = <<~PROMPT
-      ZONE ROOMS (JSON):
+      You are an expert game designer tasked with creating quests for a text-based multiplayer game.
+      Use the following information to generate quests that fit well within the provided zone.
+
+      ZONE ROOMS:
       #{JSON.pretty_generate(payload[:zone])}
+
+      ZONE MOBS:
+      In the database, mobs are `creature_instances` linked to `creatures`. If a quest requires killing a mob enemy, be sure that the enemy exists in the room_id you're referencing!
+      #{payload[:mobs]}
+      
+      ZONE NPCS:
+      Note: some NPCs can roam the zone, others never leave the room they're placed in.
+      #{payload[:npcs]}
 
       INSTRUCTIONS:
       #{payload[:instructions]}
@@ -861,7 +904,7 @@ module GameCommands
       #{payload[:quest_implementation_details]}
 
       OUTPUT:
-      Provide a JSON array of quest objects conforming to the schema above.
+      Provide a list of SQL INSERT statements to create the quests in the database. When the quest is inserted in the `quests` table, the new quest_id will be `#{quest_id}` so use that for all supporting tables.
     PROMPT
 
     print prompt_text

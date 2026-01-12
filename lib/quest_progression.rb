@@ -56,6 +56,21 @@ module World
       )
     end
 
+    def handle_visit(room_id:)
+      return unless player_character?
+
+      target_id = target.respond_to?(:id) ? target.id.to_s : target.to_s
+      metadata = { prop_name: target.respond_to?(:name) ? target.name.to_s : nil }
+
+      advance_objectives(
+        objective_type: "visit",
+        target_type: "room",
+        target_id: target_id,
+        room_id: room_id,
+        metadata: metadata
+      )
+    end
+
     def handle_turn_in(quest_id:, room_id:)
       return 0 unless player_character?
 

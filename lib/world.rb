@@ -100,7 +100,7 @@ module World
     #   ap response
     #   JSON.parse(response) if response.present?
     # end
-    def logout_player(player)
+    def self.logout_player(player)
       World::Manager.room_event(Event.new({
                                             action: ACTION_EXIT_GAME,
                                             room: player.room,

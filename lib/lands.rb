@@ -20,6 +20,7 @@ require_relative '../model/creature_instance'
 require_relative '../model/ship'
 require_relative './world'
 require_relative './game_commands'
+require_relative '../lib/quest_commands'
 
 require 'sorted_set'
 require 'pastel'
@@ -281,7 +282,13 @@ class Lands
   end
 
   def load_user(username)
-    user = User.find_by_username(username)
+    begin
+      user = User.find_by_username(username)
+    rescue StandardError => e
+      puts "Error loading user #{username}: #{e.message}"
+      puts "username: #{username.inspect}"
+      user = nil
+    end
     player_character = nil
     if user.present?
       #password = get_password
@@ -1169,6 +1176,8 @@ class Lands
       player: @player,
       sender_type: SENDER_TYPE_PLAYER
     }))
+
+    check_for_quest_objective "visit", "room", @room.id
 
     print_location
   end
