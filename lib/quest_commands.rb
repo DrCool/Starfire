@@ -362,9 +362,9 @@ def check_for_quest_objective(details = {}, target_type = nil, target_id = nil)
   obj = details[:object] || details[:item] if target_type == "object"
 
   return if action.strip.empty?
-  return unless defined?(World::QuestProgression)
 
   case action.to_s
+
   when "examine"
     if target_type == "object"
       return if obj.nil?
@@ -379,6 +379,7 @@ def check_for_quest_objective(details = {}, target_type = nil, target_id = nil)
       updates = progress.handle_examine(target: prop, room_id: @room&.id, target_type: "prop")
       print $pastel.green("Journal updated.") if updates.to_i > 0
     end
+
   when "visit"
     if target_type == "room"
       ensure_room_quest_objects(@room&.id)
@@ -386,12 +387,14 @@ def check_for_quest_objective(details = {}, target_type = nil, target_id = nil)
       updates = progress.handle_visit(room_id: @room&.id)
       print $pastel.green("Journal updated.") if updates.to_i > 0
     end
+
   when "collect"
     return if obj.nil?
 
     progress = World::QuestProgression.new(@player)
     updates = progress.handle_collect(item: obj, room_id: @room&.id)
     print $pastel.green("Journal updated.") if updates.to_i > 0
+
   when "deliver"
     return if details[:npc].nil? || obj.nil?
 
@@ -402,9 +405,10 @@ def check_for_quest_objective(details = {}, target_type = nil, target_id = nil)
       item: obj
     )
     print $pastel.green("Journal updated.") if result[:updates].to_i > 0
+
   when "say"
     progress = World::QuestProgression.new(@player)
-    updates = progress.handle_say_text(room_id: @room&.id, text: command_text)
+    updates = progress.handle_say_text(room_id: @room.id, text: command_text)
     print $pastel.green("Journal updated.") if updates.to_i > 0
   end
 end

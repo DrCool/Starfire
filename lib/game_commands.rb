@@ -385,6 +385,9 @@ module GameCommands
   end
 
   def say(text)
+    @client.print "\e[2K\r" # erase current line
+    print_hold "You say, \"#{$pastel.cyan(text)}\"."
+
     World::Manager.room_event(Event.new({
                                           action: ACTION_SAY,
                                           room: self.room,
@@ -392,11 +395,9 @@ module GameCommands
                                           player: @player,
                                           sender_type: SENDER_TYPE_PLAYER
                                         }))
-    @client.print "\e[2K\r" # erase current line
-    print_hold "You say, \"#{$pastel.cyan(text)}\"."
 
     hint = World::QuestProgression.new(@player).say_hint(room_id: @room&.id, text: text)
-    print "(#{hint})" if hint.present?
+    print "\n(#{hint})" if hint.present?
 
     check_for_quest_objective({
         objective_type: "say",

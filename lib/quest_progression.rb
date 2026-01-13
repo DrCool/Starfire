@@ -32,14 +32,10 @@ module World
     end
 
     def handle_say(event)
-      return unless player_character?
-
       handle_say_text(room_id: event.room&.id, text: event.data[:text].to_s)
     end
 
     def handle_say_text(room_id:, text:)
-      return 0 unless player_character?
-
       updates = 0
 
       updates += advance_objectives(
@@ -251,8 +247,6 @@ module World
     end
 
     def advance_objectives(objective_type:, target_type:, room_id:, target_id: nil, quest_id: nil, metadata: {}, mark_complete: false)
-      return 0 unless defined?(CharacterQuest) && defined?(QuestObjective)
-
       active_quests = CharacterQuest.where(character_id: @character.id, state: "active")
       active_quests = active_quests.where(quest_id: quest_id) if quest_id.present?
       return 0 if active_quests.empty?
@@ -293,6 +287,7 @@ module World
           next if obj.target_room_id.present? && room_id.nil?
 
           params = parse_parameters(obj.parameters_json)
+          print params
           if params["allowed_room_ids"].present?
             allowed = params["allowed_room_ids"].map(&:to_i)
             next if room_id.nil? || !allowed.include?(room_id.to_i)
@@ -335,10 +330,10 @@ module World
             next unless previous_steps_complete?(cq, step.step_number.to_i)
           end
 
-          if objective_type.to_s == "say"
-            response_text = params["response_text"].to_s.strip
-            print response_text if response_text.present?
-          end
+          # if objective_type.to_s == "say"
+          #   response_text = obj.response_text.to_s.strip
+          #   print response_text if response_text.present?
+          # end
 
           cqo = CharacterQuestObjective.find_or_create_by!(
             character_quest_id: cq.id,
@@ -365,14 +360,18 @@ module World
 
           cqo.save!
 
-          cq.last_progress_at = Time.now if cq.respond_to?(:last_progress_at=)
+          cq.last_progress_at = Time.now
           cq.save!
+          print "here 2"
+
           if completed_now
             notify_npc_saying(obj, room_id)
             yield obj if block_given?
           end
+          print "here 3"
 
           updates += 1
+          print "updates: #{updates}"
         end
 
         advance_step_if_ready(cq, step)
@@ -382,38 +381,42 @@ module World
     end
 
     def current_step_for(character_quest)
-      return nil unless defined?(QuestStep)
+      step_num = character_quest.current_step_number.to_i
 
-      step_no = 1
-      if character_quest.respond_to?(:current_step_number) && character_quest.current_step_number.present?
-        step_no = character_quest.current_step_number.to_i
-      end
-
-      QuestStep.find_by(quest_id: character_quest.quest_id, step_number: step_no) ||
+      QuestStep.find_by(quest_id: character_quest.quest_id, step_number: step_num) ||
         QuestStep.where(quest_id: character_quest.quest_id).order(:step_number).first
     end
 
     def advance_step_if_ready(character_quest, step)
+      print "STEP: #{step.step_number}"
       completion_column = objective_completion_column
       return if completion_column.nil?
 
       objectives = QuestObjective.where(quest_id: character_quest.quest_id, step_id: step.id)
+      print "objectives: #{objectives.awesome_inspect}"
       return if objectives.empty?
 
       cqo_rows = CharacterQuestObjective.where(
         character_quest_id: character_quest.id,
         quest_objective_id: objectives.map(&:id)
       ).to_a
+      print "cqo_rows: #{cqo_rows.awesome_inspect}"
       return if cqo_rows.empty?
 
       all_complete = cqo_rows.all? { |row| objective_completed?(row, completion_column) }
-      return unless all_complete
+      print "step: #{step.awesome_inspect}"
+
+      #return unless all_complete
+      print "character_quest: #{character_quest.awesome_inspect}"
+      print "character_quest.quest_id: #{character_quest.quest_id}"
+      print "step.step_number: #{step.step_number}"
 
       next_step = QuestStep.where(quest_id: character_quest.quest_id)
                            .where("step_number > ?", step.step_number)
                            .order(:step_number)
                            .first
 
+      print "next_step: #{next_step.awesome_inspect}"
       if next_step
         notify_step_complete(character_quest, step, objectives, next_step)
         character_quest.current_step_number = next_step.step_number if character_quest.respond_to?(:current_step_number=)
@@ -426,11 +429,10 @@ module World
     def complete_quest(character_quest)
       quest = Quest.find_by(id: character_quest.quest_id)
 
-      character_quest.state = "completed" if character_quest.respond_to?(:state=)
-      character_quest.completed_at = Time.now if character_quest.respond_to?(:completed_at=)
+      character_quest.state = "completed"
+      character_quest.completed_at = Time.now
 
-      if quest&.respond_to?(:repeatable?) && quest.repeatable? &&
-         quest.respond_to?(:cooldown_seconds) && character_quest.respond_to?(:cooldown_until=)
+      if quest.repeatable?
         cooldown_seconds = quest.cooldown_seconds.to_i
         character_quest.cooldown_until = Time.now + cooldown_seconds if cooldown_seconds > 0
       end
@@ -446,11 +448,9 @@ module World
       QuestReward.where(quest_id: quest.id).order(:reward_order).each do |reward|
         case reward.reward_type.to_s
         when "credits"
-          next unless @character.respond_to?(:credits=)
           @character.credits = @character.credits.to_i + reward.amount.to_i
           @character.save!
         when "xp"
-          next unless @character.respond_to?(:experience=)
           @character.experience = @character.experience.to_i + reward.amount.to_i
           @character.save!
         when "flag"
@@ -460,7 +460,7 @@ module World
             flag_key: reward.flag_key
           )
           flag.flag_value = reward.flag_value.presence || "1"
-          flag.set_by_quest_id = quest.id if flag.respond_to?(:set_by_quest_id=)
+          flag.set_by_quest_id = quest.id
           flag.save!
         end
       end
@@ -508,12 +508,22 @@ module World
       flag ? 1 : 0
     end
 
+    # language: ruby
     def parse_parameters(parameters_json)
       return {} if parameters_json.blank?
+      return parameters_json if parameters_json.is_a?(Hash)
 
-      JSON.parse(parameters_json.to_s)
-    rescue JSON::ParserError
-      {}
+      str = parameters_json.to_s
+      begin
+        JSON.parse(str)
+      rescue JSON::ParserError
+        begin
+          require 'yaml'
+          YAML.safe_load(str) || {}
+        rescue StandardError
+          {}
+        end
+      end
     end
 
     def notify_step_complete(character_quest, step, objectives, next_step)
@@ -537,14 +547,14 @@ module World
     end
 
     def notify_npc_saying(objective, room_id)
-      return unless objective.npc_saying.present?
+      return unless objective.response_text.present?
       return unless objective.target_type.to_s == "npc"
       return if room_id.nil?
 
       npc = NPC.find_by(id: objective.target_id.to_i)
       return if npc.nil? || npc.room_id.to_i != room_id.to_i
 
-      print objective.npc_saying
+      print objective.response_text
     end
 
 
