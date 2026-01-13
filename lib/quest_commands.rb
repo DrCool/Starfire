@@ -478,18 +478,47 @@ def ensure_room_quest_objects(room_id)
 
       params = parse_parameters(obj.parameters_json)
       object_id = params["on_entry_spawn_object"].to_i
-      next if object_id <= 0
-      next if InventoryItem.where(owner_type: "Room", owner_id: room_id, object_id: object_id).exists?
+      if object_id > 0
+        next if InventoryItem.where(owner_type: "Room", owner_id: room_id, object_id: object_id).exists?
 
-      game_object = GameObject.find_by(id: object_id)
-      next if game_object.nil?
+        game_object = GameObject.find_by(id: object_id)
+        next if game_object.nil?
 
-      InventoryItem.create!(
-        owner_type: "Room",
-        owner_id: room_id,
-        object_id: game_object.id,
-        quantity: 1
-      )
+        InventoryItem.create!(
+          owner_type: "Room",
+          owner_id: room_id,
+          object_id: game_object.id,
+          quantity: 1
+        )
+      end
+
+      creature_id = params["on_entry_spawn_creature"].to_i
+      if creature_id > 0
+        next if CreatureInstance.where(room_id: room_id, creature_id: creature_id).exists?
+
+        creature = Creature.find_by(id: creature_id)
+        next if creature.nil?
+
+        room = Room.find_by(id: room_id)
+        next if room.nil?
+
+        creature_instance = CreatureInstance.create!(
+          creature_id: creature.id,
+          room_id: room.id,
+          room: room,
+          hp: creature.hp,
+          creature_name: creature.name,
+          credits: World::Manager.get_creature_credits(creature)
+        )
+
+        World::Manager.room_event(Event.new({
+          action: ACTION_SPAWN_CREATURE,
+          room: room,
+          creature: creature_instance,
+          message: "#{creature_instance.indef_article.capitalize}#{creature.name} appeared.",
+          sender_type: SENDER_TYPE_CREATURE
+        }))
+      end
     end
   end
 end
