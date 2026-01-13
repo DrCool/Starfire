@@ -293,7 +293,6 @@ module World
           next if obj.target_room_id.present? && room_id.nil?
 
           params = parse_parameters(obj.parameters_json)
-          print params
           if params["allowed_room_ids"].present?
             allowed = params["allowed_room_ids"].map(&:to_i)
             next if room_id.nil? || !allowed.include?(room_id.to_i)

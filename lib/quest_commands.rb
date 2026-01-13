@@ -20,12 +20,7 @@ def list_quests
              .order(:id)
              .to_a
 
-  ap quests
-
-  # Apply prerequisites if the table exists.
-  if quests_table_exists?("quest_prerequisites")
-    quests = quests.select { |q| prerequisites_pass?(q.id) }
-  end
+  quests = quests.select { |q| prerequisites_pass?(q.id) }
 
   draw_box "", 21, 3
   num_prev_lines = 1
@@ -51,10 +46,7 @@ def list_quests
     summary = q.summary.to_s
     repeatable = q.repeatable?
 
-    cq = nil
-    if quests_table_exists?("character_quests")
-      cq = fetch_latest_character_quest(@player.id, quest_id)
-    end
+    cq = fetch_latest_character_quest(@player.id, quest_id)
 
     status = "AVAILABLE"
     cooldown_note = nil
@@ -71,7 +63,7 @@ def list_quests
       if state == "active"
         status = "ACTIVE"
       elsif state == "completed" && !repeatable
-        status = "COMPLETED"
+        status = $pastel.bright_black("COMPLETED")
       elsif repeatable
         if cooldown_time && cooldown_time > now
           status = "COOLDOWN"
@@ -91,16 +83,17 @@ def list_quests
       end
     end
 
-    header = "#{quest_id}) #{name} [#{status}]"
+    header = "#{quest_id}) #{$pastel.bright_yellow(name)} [#{status}]"
     header += " #{cooldown_note}" if cooldown_note.present?
     print header
 
     print "   #{summary}" if summary.present?
 
     rewards = fetch_quest_rewards_summary(quest_id)
-    print "   Reward: #{rewards}" if rewards.present?
+    print "   Reward: #{$pastel.cyan(rewards)}" if rewards.present?
 
-    print "   Type: accept #{quest_id}"
+    print "   Type '#{$pastel.green("accept " + quest_id.to_s)}' to accept this quest."
+    print ""
   end
 end
 
@@ -176,8 +169,8 @@ def show_quest_details(text)
   end
 
   print ""
-  print "Type: accept #{q.id}"
-  print "Once complete, return here and type: complete #{q.id}"
+  print "Type: 'accept #{q.id}'"
+  print "Once complete, return here and type: 'complete #{q.id}'"
 end
 
 def accept_quest(text)
@@ -334,7 +327,7 @@ def complete_quest(text)
 
   if cq.state.to_s == "completed"
     print "\n"
-    print $pastel.on_green($pastel.white(" Quest completed: ")) + $pastel.green("#{quest_name}")
+    print $pastel.on_bright_green($pastel.black(" Quest completed: ")) + " " + $pastel.bright_green("#{quest_name}")
     rewards = fetch_quest_rewards_summary(quest_id)
     print "Reward: #{rewards}" if rewards.present?
   else
@@ -781,12 +774,6 @@ rescue
   nil
 end
 
-def quests_table_exists?(table_name)
-  ActiveRecord::Base.connection.data_source_exists?(table_name)
-rescue
-  false
-end
-
 def parse_parameters(parameters_json)
   return {} if parameters_json.blank?
 
@@ -872,7 +859,7 @@ def fetch_quest_rewards_summary(quest_id)
 
     parts = []
     parts << "#{credits} credits" if credits > 0
-    parts << "#{xp} xp" if xp > 0
+    parts << "#{xp} exp" if xp > 0
 
     return parts.any? ? parts.join(", ") : nil
   end
@@ -890,7 +877,7 @@ def fetch_quest_rewards_summary(quest_id)
 
   parts = []
   parts << "#{credits} credits" if credits > 0
-  parts << "#{xp} xp" if xp > 0
+  parts << "#{xp} exp" if xp > 0
 
   parts.any? ? parts.join(", ") : nil
 rescue
