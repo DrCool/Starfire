@@ -27,7 +27,11 @@ module World
         objective_type: "kill",
         target_type: "creature",
         target_id: creature_id.to_s,
-        room_id: room_id
+        room_id: room_id,
+        metadata: {
+          creature_instance_id: event.data&.[](:creature_instance_id),
+          creature_name: event.data&.[](:recipient_name)
+        }
       )
     end
 
@@ -270,6 +274,8 @@ module World
               expected = obj.target_id.to_s.strip.downcase
               actual = metadata[:object_name].to_s.strip.downcase
               next unless actual.include?(expected)
+            elsif target_type.to_s == "creature" && metadata[:creature_instance_id].present?
+              next unless obj.target_id.to_s == metadata[:creature_instance_id].to_s
             else
               next
             end

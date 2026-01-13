@@ -95,7 +95,7 @@ class CreatureInstance < ActiveRecord::Base
         action: ACTION_DIE,
         room: room,
         creature_id: id,
-        data: event.data.merge(quest_progressed: true),
+        data: event.data.merge(quest_progressed: true, creature_instance_id: self.id),
         sender_type: SENDER_TYPE_CREATURE
       })
 
