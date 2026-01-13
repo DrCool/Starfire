@@ -283,7 +283,10 @@ The `fields` array lists the columns in the `quest_objectives` table that are re
         "target_room_id",
         "required_count"
       ],
-      "parameters_json": {}
+      "parameters_json": {
+        "on_entry_spawn_object": "number (optional) - object_id to spawn when player enters room",
+        "on_entry_spawn_creature": "number (optional) - creature_id to spawn when player enters room"
+      }
     },
     {
       "type": "escort",

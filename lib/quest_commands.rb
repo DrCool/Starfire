@@ -629,14 +629,14 @@ def journal(text)
       if room
         turn = "Turn-in: #{room.name}"
         cmd = "complete #{cq.quest_id}"
-        print "   #{$pastel.cyan(turn)} (#{$pastel.yellow(cmd)})"
+        print "   #{$pastel.cyan(turn)} (type '#{$pastel.yellow(cmd)}')"
       else
         cmd = "complete #{cq.quest_id}"
-        print "   #{$pastel.cyan('Turn-in:')} #{$pastel.yellow(cmd)}"
+        print "   #{$pastel.cyan('Turn-in:')} type '#{$pastel.yellow(cmd)}'"
       end
 
       hint = "journal #{cq.quest_id}"
-      print "   #{$pastel.bright_black('Details:')} #{$pastel.yellow(hint)}\n"
+      print "   #{$pastel.bright_black('Details:')} type '#{$pastel.yellow(hint)}'\n"
     end
 
     return
@@ -662,46 +662,44 @@ def journal(text)
 
   print ""
   print "#{$pastel.cyan(quest_id.to_s)}) #{$pastel.bold(name)} #{$pastel.green('[ACTIVE]')}"
-  print q.summary.to_s if q&.respond_to?(:summary) && q.summary.present?
+  print q.summary.to_s if q.summary.present?
 
   step = current_step_for(cq)
   if step
     print ""
     step_line = "Current Step #{step.step_number}: #{step.name}".strip
     print $pastel.yellow(step_line)
-    print "   #{step.description}" if step.respond_to?(:description) && step.description.present?
+    print "   #{step.description}" if step.description.present?
   end
 
-  if defined?(CharacterQuestObjective) && defined?(QuestObjective) && quests_table_exists?("character_quest_objectives")
-    begin
-      rows = CharacterQuestObjective.where(character_quest_id: cq.id).to_a
-      if rows.any?
-        obj_ids = rows.map { |r| r.quest_objective_id.to_i }.uniq
-        objs_by_id = QuestObjective.where(id: obj_ids).to_a.each_with_object({}) { |oo, h| h[oo.id.to_i] = oo }
+  begin
+    rows = CharacterQuestObjective.where(character_quest_id: cq.id).to_a
+    if rows.any?
+      obj_ids = rows.map { |r| r.quest_objective_id.to_i }.uniq
+      objs_by_id = QuestObjective.where(id: obj_ids).to_a.each_with_object({}) { |oo, h| h[oo.id.to_i] = oo }
 
-        print ""
-        print $pastel.magenta($pastel.bold("Objectives:"))
-        rows.each do |r|
-          obj = objs_by_id[r.quest_objective_id.to_i]
-          label = obj&.description.presence || obj&.objective_type.to_s || "Objective #{r.quest_objective_id}"
+      print ""
+      print $pastel.magenta($pastel.bold("Objectives:"))
+      rows.each do |r|
+        obj = objs_by_id[r.quest_objective_id.to_i]
+        label = obj&.description.presence || obj&.objective_type.to_s || "Objective #{r.quest_objective_id}"
 
-          # Progress formatting
-          cur = r.respond_to?(:current_count) ? r.current_count.to_i : nil
-          tgt = obj&.respond_to?(:required_count) ? obj.required_count.to_i : nil
-          done = objective_completed?(r)
+        # Progress formatting
+        cur = r.current_count.to_i
+        tgt = obj.required_count.to_i
+        done = objective_completed?(r)
 
-          done_tag = done ? " #{$pastel.green('[DONE]')}" : ""
+        done_tag = done ? " #{$pastel.green('[DONE]')}" : ""
 
-          if cur && tgt && tgt > 0
-            prog = "(#{cur}/#{tgt})"
-            print "- #{label} #{$pastel.yellow(prog)}#{done_tag}"
-          else
-            print "- #{label}#{done_tag}"
-          end
+        if cur && tgt && tgt > 0
+          prog = "(#{cur}/#{tgt})"
+          print "- #{label} #{$pastel.yellow(prog)}#{done_tag}"
+        else
+          print "- #{label}#{done_tag}"
         end
       end
-    rescue
     end
+  rescue
   end
 
   print ""

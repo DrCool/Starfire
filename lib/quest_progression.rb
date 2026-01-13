@@ -362,16 +362,13 @@ module World
 
           cq.last_progress_at = Time.now
           cq.save!
-          print "here 2"
 
           if completed_now
             notify_npc_saying(obj, room_id)
             yield obj if block_given?
           end
-          print "here 3"
 
           updates += 1
-          print "updates: #{updates}"
         end
 
         advance_step_if_ready(cq, step)
