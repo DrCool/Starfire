@@ -465,6 +465,32 @@ def ensure_room_quest_objects(room_id)
         quantity: 1
       )
     end
+
+    visit_objectives = QuestObjective.where(
+      quest_id: cq.quest_id,
+      step_id: step.id,
+      objective_type: "visit",
+      target_type: "room"
+    )
+
+    visit_objectives.each do |obj|
+      next unless objective_matches_room?(obj, room_id)
+
+      params = parse_parameters(obj.parameters_json)
+      object_id = params["on_entry_spawn_object"].to_i
+      next if object_id <= 0
+      next if InventoryItem.where(owner_type: "Room", owner_id: room_id, object_id: object_id).exists?
+
+      game_object = GameObject.find_by(id: object_id)
+      next if game_object.nil?
+
+      InventoryItem.create!(
+        owner_type: "Room",
+        owner_id: room_id,
+        object_id: game_object.id,
+        quantity: 1
+      )
+    end
   end
 end
 
