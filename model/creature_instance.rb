@@ -1,5 +1,6 @@
 require 'tribe'
 require_relative '../lib/actable'
+require_relative '../lib/quest_progression'
 require_relative '../model/player_character'
 
 class CreatureInstance < ActiveRecord::Base
@@ -89,11 +90,22 @@ class CreatureInstance < ActiveRecord::Base
     id = self.creature.id
     award_experience(event)
     create_corpse_for_room(room)
+    if event.data[:attacker].is_a?(PlayerCharacter)
+      quest_event = Event.new({
+        action: ACTION_DIE,
+        room: room,
+        creature_id: id,
+        data: event.data.merge(quest_progressed: true),
+        sender_type: SENDER_TYPE_CREATURE
+      })
+
+      World::QuestProgression.new(event.data[:attacker]).handle_creature_death(quest_event)
+    end
     World::Manager.room_event(Event.new({
       action: ACTION_DIE,
       room: room,
       creature_id: id,
-      data: { attacker: event.data[:attacker], recipient_def_article: self.article, attacker_name: event.data[:attacker_name], recipient_name: event.data[:recipient_name] },
+      data: { attacker: event.data[:attacker], recipient_def_article: self.article, attacker_name: event.data[:attacker_name], recipient_name: event.data[:recipient_name], quest_progressed: true },
       sender_type: SENDER_TYPE_CREATURE
   	}))
     self.destroy

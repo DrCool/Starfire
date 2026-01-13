@@ -20,6 +20,7 @@ module World
 
       register(ACTION_DIE) do |event|
         next unless event.sender_type == SENDER_TYPE_CREATURE
+        next if event.data&.[](:quest_progressed)
 
         attacker = event.data[:attacker]
         next unless attacker.is_a?(PlayerCharacter)
