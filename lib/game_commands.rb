@@ -397,6 +397,11 @@ module GameCommands
 
     hint = World::QuestProgression.new(@player).say_hint(room_id: @room&.id, text: text)
     print "(#{hint})" if hint.present?
+
+    check_for_quest_objective({
+        objective_type: "say",
+        command_text: text
+    })
   end
 
   def list_shop_items

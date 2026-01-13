@@ -402,6 +402,10 @@ def check_for_quest_objective(details = {}, target_type = nil, target_id = nil)
       item: obj
     )
     print $pastel.green("Journal updated.") if result[:updates].to_i > 0
+  when "say"
+    progress = World::QuestProgression.new(@player)
+    updates = progress.handle_say_text(room_id: @room&.id, text: command_text)
+    print $pastel.green("Journal updated.") if updates.to_i > 0
   end
 end
 

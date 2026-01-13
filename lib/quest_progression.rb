@@ -34,12 +34,29 @@ module World
     def handle_say(event)
       return unless player_character?
 
-      advance_objectives(
+      handle_say_text(room_id: event.room&.id, text: event.data[:text].to_s)
+    end
+
+    def handle_say_text(room_id:, text:)
+      return 0 unless player_character?
+
+      updates = 0
+
+      updates += advance_objectives(
         objective_type: "say",
         target_type: "npc",
-        room_id: event.room&.id,
-        metadata: { text: event.data[:text].to_s }
+        room_id: room_id,
+        metadata: { text: text.to_s }
       )
+
+      updates += advance_objectives(
+        objective_type: "say",
+        target_type: "room",
+        room_id: room_id,
+        metadata: { text: text.to_s }
+      )
+
+      updates
     end
 
     def handle_examine(target:, room_id:, target_type: "prop")
@@ -144,7 +161,7 @@ module World
         )
 
         objectives.each do |obj|
-          next if obj.target_type.present? && obj.target_type.to_s != "npc"
+          next if obj.target_type.present? && !["npc", "room"].include?(obj.target_type.to_s)
           next if obj.target_room_id.present? && room_id.present? && obj.target_room_id.to_i != room_id.to_i
           next if obj.target_room_id.present? && room_id.nil?
 
@@ -154,19 +171,17 @@ module World
             next if room_id.nil? || !allowed.include?(room_id.to_i)
           end
 
+          if obj.target_type.to_s == "npc" && obj.target_id.present?
+            next unless npc_in_room?(obj.target_id, room_id)
+          end
+
+          if params["requires_npc_id"].present?
+            next unless npc_in_room?(params["requires_npc_id"], room_id)
+          end
+
           hint = params["dialog_hint"].to_s.strip
           next if hint.empty?
-
-          if params["expected_text"].present?
-            expected = params["expected_text"].to_s.strip.downcase
-            heard = text.to_s.strip.downcase
-            next if expected == heard
-          end
-
-          if obj.target_id.present? && room_id.present?
-            npc = NPC.find_by(id: obj.target_id.to_i)
-            next if npc.nil? || npc.room_id.to_i != room_id.to_i
-          end
+          next if say_text_matches?(params, text.to_s)
 
           if defined?(CharacterQuestObjective)
             cqo = CharacterQuestObjective.find_by(
@@ -201,6 +216,40 @@ module World
       @character.is_a?(PlayerCharacter)
     end
 
+    def npc_in_room?(npc_id, room_id)
+      return false if npc_id.nil? || room_id.nil?
+
+      npc = NPC.find_by(id: npc_id.to_i)
+      npc.present? && npc.room_id.to_i == room_id.to_i
+    end
+
+    def say_text_matches?(params, text)
+      normalized = text.to_s.strip.downcase
+
+      min_words = params["min_words"].to_i
+      if params["min_words"].present? && min_words > 0
+        return false if normalized.split(/\s+/).size < min_words
+      end
+
+      exact_phrase = params["exact_phrase"].to_s.strip.downcase
+      return false if exact_phrase.present? && normalized != exact_phrase
+
+      expected_text = params["expected_text"].to_s.strip.downcase
+      return false if expected_text.present? && normalized != expected_text
+
+      keywords_any = Array(params["keywords_any"]).map(&:to_s).map(&:strip).reject(&:empty?).map(&:downcase)
+      if keywords_any.any?
+        return false unless keywords_any.any? { |keyword| normalized.include?(keyword) }
+      end
+
+      keywords_all = Array(params["keywords_all"]).map(&:to_s).map(&:strip).reject(&:empty?).map(&:downcase)
+      if keywords_all.any?
+        return false unless keywords_all.all? { |keyword| normalized.include?(keyword) }
+      end
+
+      true
+    end
+
     def advance_objectives(objective_type:, target_type:, room_id:, target_id: nil, quest_id: nil, metadata: {}, mark_complete: false)
       return 0 unless defined?(CharacterQuest) && defined?(QuestObjective)
 
@@ -231,7 +280,14 @@ module World
               next
             end
           end
-          next if obj.target_id.present? && target_id.nil?
+
+          if obj.target_id.present? && target_id.nil?
+            if objective_type.to_s == "say" && target_type.to_s == "npc"
+              next unless npc_in_room?(obj.target_id, room_id)
+            else
+              next
+            end
+          end
 
           next if obj.target_room_id.present? && room_id.present? && obj.target_room_id.to_i != room_id.to_i
           next if obj.target_room_id.present? && room_id.nil?
@@ -240,6 +296,14 @@ module World
           if params["allowed_room_ids"].present?
             allowed = params["allowed_room_ids"].map(&:to_i)
             next if room_id.nil? || !allowed.include?(room_id.to_i)
+          end
+
+          if params["requires_npc_id"].present?
+            next unless npc_in_room?(params["requires_npc_id"], room_id)
+          end
+
+          if objective_type.to_s == "say"
+            next unless say_text_matches?(params, metadata[:text].to_s)
           end
 
           if params["expected_text"].present?
@@ -269,6 +333,11 @@ module World
 
           if params["requires_previous_steps_complete"].to_i == 1
             next unless previous_steps_complete?(cq, step.step_number.to_i)
+          end
+
+          if objective_type.to_s == "say"
+            response_text = params["response_text"].to_s.strip
+            print response_text if response_text.present?
           end
 
           cqo = CharacterQuestObjective.find_or_create_by!(
