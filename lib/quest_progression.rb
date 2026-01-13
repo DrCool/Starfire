@@ -374,7 +374,7 @@ module World
     def apply_rewards(quest)
       return if quest.nil? || !defined?(QuestReward)
 
-      QuestReward.where(quest_id: quest.id).order(:order).each do |reward|
+      QuestReward.where(quest_id: quest.id).order(:reward_order).each do |reward|
         case reward.reward_type.to_s
         when "credits"
           next unless @character.respond_to?(:credits=)

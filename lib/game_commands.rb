@@ -247,7 +247,7 @@ module GameCommands
       @player.hp += 1
       print "You feel more rested."
       return
-    when "quests"
+    when "quests", "jobs"
       if text.to_s.strip == ""
         list_quests
       else
@@ -326,6 +326,8 @@ module GameCommands
 
   def loc
     print "You are located at #{@player.x} / #{@player.y} / #{@player.z}."
+    print "Room ID: #{@room.id}"
+    print @room.awesome_inspect
   end
 
   def who

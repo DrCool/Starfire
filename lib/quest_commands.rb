@@ -1,6 +1,7 @@
 require 'json'
 require_relative '../model/inventory_item'
 require_relative '../model/game_object'
+require_relative 'lands'
 
 # List quests at the current board
 def list_quests
@@ -19,15 +20,22 @@ def list_quests
              .order(:id)
              .to_a
 
+  ap quests
+
   # Apply prerequisites if the table exists.
   if quests_table_exists?("quest_prerequisites")
     quests = quests.select { |q| prerequisites_pass?(q.id) }
   end
 
+  draw_box "", 21, 3
+  num_prev_lines = 1
+  width = 1
+  print_hold "\e[#{num_prev_lines}A"
+
   print ""
-  print $pastel.on_red($pastel.bright_white($pastel.bold("                         ")))
-  print $pastel.on_red($pastel.bright_white($pastel.bold("       Quest Board       ")))
-  print $pastel.on_red($pastel.bright_white($pastel.bold("                         ")))
+  print "\e[#{width}C" + $pastel.on_red($pastel.bright_white($pastel.bold("                         ")))
+  print "\e[#{width}C" + $pastel.on_red($pastel.bright_white($pastel.bold("       Quest Board       ")))
+  print "\e[#{width}C" + $pastel.on_red($pastel.bright_white($pastel.bold("                         ")))
   print ""
 
   if quests.empty?
@@ -565,7 +573,7 @@ def journal(text)
       end
 
       hint = "journal #{cq.quest_id}"
-      print "   #{$pastel.bright_black('Details:')} #{$pastel.yellow(hint)}"
+      print "   #{$pastel.bright_black('Details:')} #{$pastel.yellow(hint)}\n"
     end
 
     return
