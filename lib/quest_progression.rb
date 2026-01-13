@@ -388,35 +388,26 @@ module World
     end
 
     def advance_step_if_ready(character_quest, step)
-      print "STEP: #{step.step_number}"
       completion_column = objective_completion_column
       return if completion_column.nil?
 
       objectives = QuestObjective.where(quest_id: character_quest.quest_id, step_id: step.id)
-      print "objectives: #{objectives.awesome_inspect}"
       return if objectives.empty?
 
       cqo_rows = CharacterQuestObjective.where(
         character_quest_id: character_quest.id,
         quest_objective_id: objectives.map(&:id)
       ).to_a
-      print "cqo_rows: #{cqo_rows.awesome_inspect}"
       return if cqo_rows.empty?
 
       all_complete = cqo_rows.all? { |row| objective_completed?(row, completion_column) }
-      print "step: #{step.awesome_inspect}"
-
-      #return unless all_complete
-      print "character_quest: #{character_quest.awesome_inspect}"
-      print "character_quest.quest_id: #{character_quest.quest_id}"
-      print "step.step_number: #{step.step_number}"
+      return unless all_complete
 
       next_step = QuestStep.where(quest_id: character_quest.quest_id)
                            .where("step_number > ?", step.step_number)
                            .order(:step_number)
                            .first
 
-      print "next_step: #{next_step.awesome_inspect}"
       if next_step
         notify_step_complete(character_quest, step, objectives, next_step)
         character_quest.current_step_number = next_step.step_number if character_quest.respond_to?(:current_step_number=)
