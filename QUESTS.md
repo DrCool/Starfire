@@ -202,141 +202,237 @@ Examples:
 
 ## Quest Objective Types
 
-The `quest_objectives` table has an `objective_type` column that defines what kind of action is required. Here are the supported types:
+The `quest_objectives` table has a `objective_type` column that defines what kind of action is required. Here are the supported types and their configurations:
 
-{
-"quest_objective_types": [
-{
-"type": "kill",
-"description": "Defeat a certain number of a specific creature type.",
-"target_type": ["creature"],
-"fields": ["target_id", "required_count", "target_room_id", "parameters_json.allowed_room_ids"],
-"parameters_json": {
-"allowed_room_ids": "number[] (optional) - restrict kills to specific rooms"
-}
-},
-{
-"type": "kill_unique",
-"description": "Kill a specific named NPC or a specific creature instance (boss/target).",
-"target_type": ["npc", "creature_instance"],
-"fields": ["target_id", "required_count"],
-"parameters_json": {}
-},
-{
-"type": "turnin",
-"description": "Return to a location to complete or advance the quest (usually triggered by 'complete <quest_id>' at a board or target room).",
-"target_type": ["room"],
-"fields": ["target_room_id", "required_count", "parameters_json.requires_previous_steps_complete"],
-"parameters_json": {
-"requires_previous_steps_complete": "0|1 (optional) - enforce earlier steps complete before turn-in"
-}
-},
-{
-"type": "examine",
-"description": "Examine a prop/object/NPC to gather info or trigger progression.",
-"target_type": ["prop", "object", "npc"],
-"fields": ["target_id", "target_room_id", "required_count", "parameters_json.allowed_room_ids", "parameters_json.match_name"],
-"parameters_json": {
-"allowed_room_ids": "number[] (optional) - restrict where examining counts",
-"match_name": "string (optional) - canonical name/alias like 'console' to help matching"
-}
-},
-{
-"type": "visit",
-"description": "Enter a specific room (triggered when the player arrives).",
-"target_type": ["room"],
-"fields": ["target_room_id", "required_count"],
-"parameters_json": {}
-},
-{
-"type": "escort",
-"description": "Escort an NPC safely to a destination room.",
-"target_type": ["npc"],
-"fields": ["target_id", "target_room_id", "required_count"],
-"parameters_json": {
-"requires_following": "0|1 (optional) - require NPC to be following player at completion",
-"fail_if_npc_dead": "0|1 (optional) - fail objective if escort NPC dies"
-}
-},
-{
-"type": "say",
-"description": "Player says something that matches keywords or an exact phrase; optionally requires a specific NPC to be present.",
-"target_type": ["npc", "room"],
-"fields": ["target_id (optional)", "target_room_id (optional)", "required_count", "parameters_json"],
-"parameters_json": {
-"keywords_any": "string[] (optional) - any phrase match triggers",
-"keywords_all": "string[] (optional) - all phrase matches required",
-"exact_phrase": "string (optional) - normalized exact match",
-"requires_npc_id": "number (optional) - NPC must be present in room",
-"allowed_room_ids": "number[] (optional) - restrict where it can trigger",
-"min_words": "number (optional) - anti-accidental trigger guard"
-}
-},
-{
-"type": "collect",
-"description": "Obtain one or more items (triggered when item enters inventory).",
-"target_type": ["object"],
-"fields": ["target_id", "required_count"],
-"parameters_json": {
-"allowed_sources": "string[] (optional) - e.g. ['loot','shop','quest_reward']"
-}
-},
-{
-"type": "deliver",
-"description": "Bring an item to a room or NPC and deliver it (triggered by a deliver action, or by turn-in validation).",
-"target_type": ["room", "npc"],
-"fields": ["target_room_id (or target_id if npc)", "required_count", "parameters_json.item_object_id"],
-"parameters_json": {
-"item_object_id": "number - object_id that must be delivered",
-"consume_item_on_complete": "0|1 (optional) - remove item(s) from inventory when completed"
-}
-},
-{
-"type": "use",
-"description": "Use a specific item on a target (prop/npc/room).",
-"target_type": ["prop", "npc", "room"],
-"fields": ["target_id", "target_room_id (optional)", "required_count", "parameters_json.required_item_id"],
-"parameters_json": {
-"required_item_id": "number - object_id required to use",
-"allowed_room_ids": "number[] (optional) - restrict where it can trigger",
-"consume_item_on_use": "0|1 (optional) - remove item when used"
-}
-},
-{
-"type": "activate",
-"description": "Activate a device/system (typically a prop or room device).",
-"target_type": ["prop", "room"],
-"fields": ["target_id (optional)", "target_room_id", "required_count"],
-"parameters_json": {
-"requires_item_id": "number (optional) - require item in inventory to activate",
-"allowed_room_ids": "number[] (optional)"
-}
-},
-{
-"type": "disable",
-"description": "Disable a device/system or an NPC (alarm, corrupted node, security grid, etc.).",
-"target_type": ["prop", "npc", "room"],
-"fields": ["target_id (optional)", "target_room_id (optional)", "required_count"],
-"parameters_json": {
-"requires_item_id": "number (optional) - require item in inventory to disable",
-"allowed_room_ids": "number[] (optional)"
-}
-},
-{
-"type": "survive",
-"description": "Remain alive for a duration (often in a specific room).",
-"target_type": ["room"],
-"fields": ["target_room_id", "required_count", "parameters_json.seconds"],
-"parameters_json": {
-"seconds": "number - duration that must be survived",
-"fail_on_leave_room": "0|1 (optional) - fail if player leaves room before time",
-"allowed_room_ids": "number[] (optional) - alternative room constraints"
-}
-}
-]
-}
+The `fields` array lists the columns in the `quest_objectives` table that are relevant for that objective type. The `parameters_json` field allows for additional configuration options specific to each objective type.
 
-Additional objective types can be used, but please indicate what you have added so I can add them to the code.
+```json
+{
+  "quest_objective_types": [
+    {
+      "type": "kill",
+      "description": "Defeat a certain number of a specific creature type.",
+      "target_type": [
+        "creature"
+      ],
+      "fields": [
+        "target_id",
+        "required_count",
+        "target_room_id",
+        "parameters_json.allowed_room_ids"
+      ],
+      "parameters_json": {
+        "allowed_room_ids": "number[] (optional) - restrict kills to specific rooms"
+      }
+    },
+    {
+      "type": "kill_unique",
+      "description": "Kill a specific named NPC or a specific named creature instance (boss/target).",
+      "target_type": [
+        "npc",
+        "creature_instance"
+      ],
+      "fields": [
+        "target_id",
+        "required_count"
+      ],
+      "parameters_json": {}
+    },
+    {
+      "type": "turnin",
+      "description": "Return to a location to complete or advance the quest (usually triggered by 'complete <quest_id>' at a board or target room).",
+      "target_type": [
+        "room"
+      ],
+      "fields": [
+        "target_room_id",
+        "required_count",
+        "parameters_json.requires_previous_steps_complete"
+      ],
+      "parameters_json": {
+        "requires_previous_steps_complete": "0|1 (optional) - enforce earlier steps complete before turn-in"
+      }
+    },
+    {
+      "type": "examine",
+      "description": "Examine a prop/object/NPC to gather info or trigger progression.",
+      "target_type": [
+        "prop",
+        "object",
+        "npc"
+      ],
+      "fields": [
+        "target_id",
+        "target_room_id",
+        "required_count",
+        "parameters_json.allowed_room_ids",
+        "parameters_json.match_name"
+      ],
+      "parameters_json": {
+        "allowed_room_ids": "number[] (optional) - restrict where examining counts",
+        "match_name": "string (optional) - canonical name/alias like 'console' to help matching"
+      }
+    },
+    {
+      "type": "visit",
+      "description": "Enter a specific room (triggered when the player arrives).",
+      "target_type": [
+        "room"
+      ],
+      "fields": [
+        "target_room_id",
+        "required_count"
+      ],
+      "parameters_json": {}
+    },
+    {
+      "type": "escort",
+      "description": "Escort an NPC safely to a destination room.",
+      "target_type": [
+        "npc"
+      ],
+      "fields": [
+        "target_id",
+        "target_room_id",
+        "required_count"
+      ],
+      "parameters_json": {
+        "requires_following": "0|1 (optional) - require NPC to be following player at completion",
+        "fail_if_npc_dead": "0|1 (optional) - fail objective if escort NPC dies"
+      }
+    },
+    {
+      "type": "say",
+      "description": "Player says something that matches keywords or an exact phrase; optionally requires a specific NPC to be present.",
+      "target_type": [
+        "npc",
+        "room"
+      ],
+      "fields": [
+        "target_id (optional)",
+        "target_room_id (optional)",
+        "required_count",
+        "parameters_json"
+      ],
+      "parameters_json": {
+        "keywords_any": "string[] (optional) - any phrase match triggers",
+        "keywords_all": "string[] (optional) - all phrase matches required",
+        "exact_phrase": "string (optional) - normalized exact match",
+        "requires_npc_id": "number (optional) - NPC must be present in room",
+        "allowed_room_ids": "number[] (optional) - restrict where it can trigger",
+        "min_words": "number (optional) - anti-accidental trigger guard",
+        "dialog_hint": "string (optional) - Text that is shown if player has active quest and is in the correct room (based on target_type) but didn't say the right keywords",
+        "response_text": "string (optional) - Text that is printed to the player's screen in response"
+      }
+    },
+    {
+      "type": "collect",
+      "description": "Obtain one or more items (triggered when item enters inventory).",
+      "target_type": [
+        "object"
+      ],
+      "fields": [
+        "target_id",
+        "required_count"
+      ],
+      "parameters_json": {
+        "allowed_sources": "string[] (optional) - e.g. ['loot','shop','quest_reward']"
+      }
+    },
+    {
+      "type": "deliver",
+      "description": "Bring an item to a room or NPC and deliver it (triggered by a deliver action, or by turn-in validation).",
+      "target_type": [
+        "room",
+        "npc"
+      ],
+      "fields": [
+        "target_room_id (or target_id if npc)",
+        "required_count",
+        "parameters_json.item_object_id"
+      ],
+      "parameters_json": {
+        "item_object_id": "number - object_id that must be delivered",
+        "consume_item_on_complete": "0|1 (optional) - remove item(s) from inventory when completed"
+      }
+    },
+    {
+      "type": "use",
+      "description": "Use a specific item on a target (prop/npc/room).",
+      "target_type": [
+        "prop",
+        "npc",
+        "room"
+      ],
+      "fields": [
+        "target_id",
+        "target_room_id (optional)",
+        "required_count",
+        "parameters_json.required_item_id"
+      ],
+      "parameters_json": {
+        "required_item_id": "number - object_id required to use",
+        "allowed_room_ids": "number[] (optional) - restrict where it can trigger",
+        "consume_item_on_use": "0|1 (optional) - remove item when used"
+      }
+    },
+    {
+      "type": "activate",
+      "description": "Activate a device/system (typically a prop or room device).",
+      "target_type": [
+        "prop",
+        "room"
+      ],
+      "fields": [
+        "target_id (optional)",
+        "target_room_id",
+        "required_count"
+      ],
+      "parameters_json": {
+        "requires_item_id": "number (optional) - require item in inventory to activate",
+        "allowed_room_ids": "number[] (optional)"
+      }
+    },
+    {
+      "type": "disable",
+      "description": "Disable a device/system or an NPC (alarm, corrupted node, security grid, etc.).",
+      "target_type": [
+        "prop",
+        "npc",
+        "room"
+      ],
+      "fields": [
+        "target_id (optional)",
+        "target_room_id (optional)",
+        "required_count"
+      ],
+      "parameters_json": {
+        "requires_item_id": "number (optional) - require item in inventory to disable",
+        "allowed_room_ids": "number[] (optional)"
+      }
+    },
+    {
+      "type": "survive",
+      "description": "Remain alive for a duration (often in a specific room).",
+      "target_type": [
+        "room"
+      ],
+      "fields": [
+        "target_room_id",
+        "required_count",
+        "parameters_json.seconds"
+      ],
+      "parameters_json": {
+        "seconds": "number - duration that must be survived",
+        "fail_on_leave_room": "0|1 (optional) - fail if player leaves room before time",
+        "allowed_room_ids": "number[] (optional) - alternative room constraints"
+      }
+    }
+  ]
+}
+```
+
+Additional objective types can be added, but please indicate what you have added so I can add them to the code.
 
 # Game Theme
 
