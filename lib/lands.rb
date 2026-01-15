@@ -289,29 +289,22 @@ class Lands
       puts "username: #{username.inspect}"
       user = nil
     end
-    player_character = nil
     if user.present?
-      #password = get_password
-      #password = password[3..-1]
-      #if user.password == password
-        user.logged_in = true
-        user.last_login_at = user.current_login_at
-        user.current_login_at = Time.now
-        logins = user.login_count || 0
-        user.login_count = logins + 1
-        user.save
+      user.logged_in = true
+      user.last_login_at = user.current_login_at
+      user.current_login_at = Time.now
+      logins = user.login_count || 0
+      user.login_count = logins + 1
+      user.save
 
-        player_character = PlayerCharacter.find_by_user_id(user.id)
-        player_character.logged_in = true
-        player_character.save
-      #else
-      #  return [ "Incorrect password", nil, nil ]
-      #end
+      player_character = PlayerCharacter.find_by_user_id(user.id)
+      player_character.logged_in = true
+      player_character.save
     else
       return [ "User not found", nil, nil ]
     end
 
-    return [ nil, user, player_character ]
+    [ nil, user, player_character ]
   end
 
   def create_new_user
@@ -335,10 +328,26 @@ class Lands
     user.email = ""
     user.save
 
-    player_character = PlayerCharacter.new
-    player_character.name = username
-    player_character.user_id = user.id
-    player_character.save
+    room = Room.first
+
+    pc = PlayerCharacter.new
+    pc.name = username
+    pc.user_id = user.id
+    pc.level = 1
+    pc.experience = 0
+    pc.strength = 10
+    pc.dexterity = 10
+    pc.intelligence = 10
+    pc.bravery = 10
+    pc.credits = 0
+    pc.logged_in = true
+    pc.room_id = room.id
+    pc.x = room.x
+    pc.y = room.y
+    pc.z = room.z
+    pc.created_at = Time.now
+    pc.updated_at = Time.now
+    pc.save
 
     puts "\033[7m #{name}\e[0m just logged in as a new user."
     username
@@ -1373,9 +1382,18 @@ class Lands
   def stats
     print $pastel.bright_white("\nCharacter Stats for #{$pastel.bright_yellow(@player.name)}\n")
     print "Level: #{@player.level}"
-    print "Experience: #{@player.experience}"
+    print_hold "Experience: #{@player.experience} "
+    if @player.enough_experience_to_train?
+      print $pastel.bright_green("(You can level up now at a training hall!)")
+    elsif @player.experience_for_next_level > 0
+      exp_needed = @player.experience_for_next_level - @player.experience
+      print $pastel.bright_yellow("(#{exp_needed} experience points needed to level up)")
+    else
+      print ""
+    end
     print "Health: #{@player.hp} / #{@player.hitmax}"
     print "Strength: #{@player.strength}"
+    print "Intelligence: #{@player.intelligence}"
     print "Dexterity: #{@player.dexterity}"
     print "Bravery: #{@player.bravery}"
     print equipment_stats_line

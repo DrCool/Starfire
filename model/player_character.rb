@@ -144,6 +144,22 @@ class PlayerCharacter < ActiveRecord::Base
     base + variance
   end
 
+  # Provide XP progression helpers on the PlayerCharacter model so any part of the
+  # code that has a reference to a player can query/train safely.
+
+
+  def experience_for_next_level
+    # Simple quadratic progression: required XP grows with (level+1)^2 scaled by a base.
+    # Using a modest base keeps progression reasonable given the small XP rewards from creatures.
+    level = self.level.to_i
+    base_xp = 800 # minimum XP required for level 2
+    base_xp + ((level ** 1.2) * 200).to_i
+  end
+
+  def enough_experience_to_train?
+    self.experience.to_i >= experience_for_next_level
+  end
+
   private
 
   def print(text)

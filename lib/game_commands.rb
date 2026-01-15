@@ -180,6 +180,9 @@ module GameCommands
     when "stats"
       stats
       return
+    when "train"
+      train
+      return
     when "map"
       show_map @room.id, @screen_params
       return
@@ -1105,6 +1108,34 @@ module GameCommands
     else
       item.update!(owner_type: new_owner_type, owner_id: new_owner_id)
     end
+  end
+
+  def train
+    if not @player.enough_experience_to_train?
+      required_xp = @player.experience_for_next_level
+      print "You need #{$pastel.bright_yellow(required_xp)} experience to train to the next level. You currently have #{$pastel.bright_yellow(@player.experience.to_i)} experience."
+      return
+    end
+
+    @player.experience = @player.experience.to_i - @player.experience_for_next_level
+
+    level = @player.level.to_i
+    level = level + 1
+    @player.level = level
+
+    hitmax_base = 2.1
+    level_adjustment = level < 3 ? 1 : level < 7 ? 2 : level - 3
+    gain = (hitmax_base + (level_adjustment * 1.2)).round
+    @player.hitmax = @player.hitmax.to_i + gain
+    @player.hp = @player.hitmax
+    @player.strength = @player.strength.to_i + 1
+    @player.bravery = @player.bravery.to_i + 1
+    @player.dexterity = @player.dexterity.to_i + 1
+    @player.intelligence = @player.intelligence.to_i + 1
+    @player.save
+
+    print "You train and improve your abilities! You are now " + $pastel.bright_yellow.bold("Level #{level}.")
+    print "Hit Points increased by #{$pastel.cyan.bold(gain)} to #{$pastel.bright_cyan.bold(@player.hitmax)}."
   end
 
 end
