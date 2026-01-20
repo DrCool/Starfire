@@ -1851,14 +1851,15 @@ class Lands
     return { entity: result, type: :prop } if result.present?
 
     # Check for objects in room
-    objects = GameObject.where(id: InventoryItem.where(owner_type: "Room", owner_id: @room.id).pluck(:game_object_id))
+    objects = GameObject.where(id: InventoryItem.where(owner_type: "Room", owner_id: @room.id).pluck(:object_id))
     result = objects.find do |obj|
       obj.name.to_s.downcase.include? downcased
     end
     return { entity: result, type: :object } if result.present?
 
     # Check also for objects in player's inventory
-    inventory_objects = GameObject.where(id: InventoryItem.where(owner_type: "PlayerCharacter", owner_id: @player.id).pluck(:game_object_id))
+    inventory_objects = GameObject.where(id: InventoryItem.where(owner_type: "PlayerCharacter", owner_id: @player.id).pluck(:object_id))
+    ap inventory_objects
     result = inventory_objects.find do |obj|
       obj.name.to_s.downcase.include? downcased
     end if result.nil?

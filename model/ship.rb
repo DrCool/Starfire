@@ -225,22 +225,7 @@ class Ship < ActiveRecord::Base
   end
 
   def route_stops
-    # Prefer ship_movements if present.
-    begin
-      rows = ship_movements.to_a
-    rescue => e
-      warn "[Ship] ship_id=#{id} failed to load ship_movements: #{e.class}: #{e.message}"
-      rows = []
-    end
-
-    if rows.empty?
-      begin
-        rows = ShipMovement.where(ship_id: id).order(:order).to_a
-      rescue => e
-        warn "[Ship] ship_id=#{id} direct ShipMovement query failed: #{e.class}: #{e.message}"
-      end
-    end
-
+    rows = ship_movements.to_a
     if rows.length >= 2
       # Build a lightweight struct/hash so we don't hard-couple to associations.
       return rows.map do |sm|

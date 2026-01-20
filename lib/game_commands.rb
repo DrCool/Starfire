@@ -274,6 +274,10 @@ module GameCommands
       create_llm_quest
       return
     when "exa", "examine"
+      if text.strip == "credits"
+        print "You have #{@player.credits.to_i} credits. These are the universal currency used throughout the galaxy. You can earn credits by completing quests, selling items, or defeating enemies. At shops, you can use credits to buy items you need for your adventures."
+        return
+      end
       entity = find_entity_in_room(text)
       if entity.present?
         if [:prop, :object].include?(entity[:type])
