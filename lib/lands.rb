@@ -769,6 +769,20 @@ class Lands
     end
   end
 
+  def sleep_timer(seconds, wait_message = nil, finish_message = nil)
+    print_hold ". " + wait_message # print a dot each second followed by the wait message
+    seconds.times do |i|
+      sleep 1
+      overprint "."*(i+2) + " " + wait_message if wait_message.present?
+    end
+    if finish_message.present?
+      print ""
+      print_hold "\r" + finish_message + " " + (" " * 20) + "\n"
+    else
+      print_hold "\n"
+    end
+  end
+
 
   def scrolling_menu(question, options)
     max_width = get_max_array_width(options)
