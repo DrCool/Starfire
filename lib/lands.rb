@@ -951,9 +951,6 @@ class Lands
       loop do # do background events and wait for input
         command = get_input
         if command.present?
-          if command.split(" ").first != "say" && command[0...1] != "'"
-            print_hold "\n\r"
-          end
           parse_input(command)
           break
         end
@@ -1852,6 +1849,26 @@ class Lands
       prop.name.to_s.downcase.include? downcased
     end
     return { entity: result, type: :prop } if result.present?
+
+    # Check for objects in room
+    objects = GameObject.where(id: InventoryItem.where(owner_type: "Room", owner_id: @room.id).pluck(:game_object_id))
+    result = objects.find do |obj|
+      obj.name.to_s.downcase.include? downcased
+    end
+    return { entity: result, type: :object } if result.present?
+
+    # Check also for objects in player's inventory
+    inventory_objects = GameObject.where(id: InventoryItem.where(owner_type: "PlayerCharacter", owner_id: @player.id).pluck(:game_object_id))
+    result = inventory_objects.find do |obj|
+      obj.name.to_s.downcase.include? downcased
+    end if result.nil?
+    return { entity: result, type: :object } if result.present?
+
+    ships = Ship.select { |s| s.dock_room_id == @room.id }
+    result = ships.find do |ship|
+      ship.name.to_s.downcase.include? downcased
+    end
+    return { entity: result, type: :ship } if result.present?
   end
 
   def find_room_item(name)

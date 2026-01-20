@@ -1,4 +1,4 @@
-# Quest System Overview (Starfire MUD)
+## Quest System Overview (Starfire MUD)
 
 This document describes the **quest system database schema** and how quests are defined, progressed, and reacted to in the game world.
 
@@ -9,7 +9,7 @@ The quest system is designed to support:
 - per-character quest progress
 - NPC and room reactions via quest flags without requiring global world-state changes.
 
-## Core Concepts
+### Core Concepts
 
 - **Quest**: a reusable definition (what the quest is)
 - **Quest Step**: an ordered stage in a quest
@@ -20,9 +20,9 @@ The quest system is designed to support:
 - **Objective Progress**: per-character progress tracking
 - **Character Flags**: durable per-character markers used for reactions, gating, and unlocks
 
-## Table Summary
+### Table Summary
 
-### `quests`
+#### `quests`
 Defines a quest.
 
 - One row per quest
@@ -36,7 +36,7 @@ Defines a quest.
 - `start_room_id`: where the quest can start (optional)
 - `metadata_json`: tags, faction info, etc.
 
-### `quest_steps`
+#### `quest_steps`
 Defines ordered stages within a quest.
 
 - A quest has 1+ steps
@@ -48,7 +48,7 @@ Defines ordered stages within a quest.
 - `on_start_flags_json`: flags to set when step begins
 - `on_complete_flags_json`: flags to set when step completes
 
-### `quest_objectives`
+#### `quest_objectives`
 Defines what must be done to complete a step.
 
 Each objective is **atomic** and machine-checkable.
@@ -70,7 +70,7 @@ Each objective is **atomic** and machine-checkable.
 - `required_count`: number required
 - `parameters_json`: flexible configuration (allowed mobs, delivery NPC, etc.)
 
-### `character_quests`
+#### `character_quests`
 When a player accepts a quest, a new row is created in `character_quests` which tracks a player's’s participation and progress in a quest.
 
 **Key columns**
@@ -81,7 +81,7 @@ When a player accepts a quest, a new row is created in `character_quests` which 
 - `started_at`, `completed_at`
 - `cooldown_until`: for repeatable quests
 
-### `character_quest_objectives`
+#### `character_quest_objectives`
 Tracks per-character progress for each objective.
 
 - One row per objective per character quest
@@ -91,7 +91,7 @@ Tracks per-character progress for each objective.
 - `is_completed`: objective completion flag
 - `progress_json`: stores granular details (e.g. which rooms visited)
 
-### `quest_rewards`
+#### `quest_rewards`
 Defines rewards granted when a quest completes.
 
 Rewards are data-driven and ordered.
@@ -111,7 +111,7 @@ Rewards are data-driven and ordered.
 - `flag_key`, `flag_value`
 - `parameters_json`
 
-### `quest_prerequisites`
+#### `quest_prerequisites`
 Defines requirements before a quest can be started.
 
 **Supported prerequisite types**
@@ -124,9 +124,9 @@ Defines requirements before a quest can be started.
 - Requires another quest to be completed
 - Requires a specific character flag
 
-## Character Flags (Reactive World Layer)
+### Character Flags (Reactive World Layer)
 
-### `character_flags`
+#### `character_flags`
 Stores persistent per-character flags.
 
 Flags are used to:
@@ -141,11 +141,11 @@ Flags are used to:
 - `set_by_quest_id`: source quest (optional)
 - `expires_at`: optional (for timed flags later)
 
-## NPC / Room Reactions
+### NPC / Room Reactions
 
 NPCs and rooms can react to completed quests using flags.
 
-### Gating fields added to existing tables (npc_sayings and room_sayings):
+#### Gating fields added to existing tables (npc_sayings and room_sayings):
 
 The `*_sayings` tables contain text that appears randomly when the player is in the same room as the NPC or in the room itself. This creates "atmosphere" and immersion.
  
@@ -158,12 +158,12 @@ The `*_sayings` tables contain text that appears randomly when the player is in 
 
 Sayings are shown **only if the character has the required flag**.
 
-### `character_seen_sayings`
+#### `character_seen_sayings`
 Tracks one-time NPC or room lines already seen by a character.
 
 Used when `once_per_player = 1`. This ensures that the line is only shown once per character.
 
-## Quest Progress Model (Runtime)
+### Quest Progress Model (Runtime)
 
 Game events drive quest progress:
 
@@ -181,7 +181,7 @@ When the final step completes:
 - grant rewards
 - set quest completion flags
 
-## Design Rules
+### Design Rules
 
 - Quests are **per-character**, not global
 - Flags affect **perception and access**, not world permanence
@@ -189,7 +189,7 @@ When the final step completes:
 - New quest types should not require schema changes
 - Complex quests are built by combining multiple steps and objectives
 
-## Example Flag Naming Convention
+### Example Flag Naming Convention
 Flags follow a hierarchical dot-separated format:
 `quest.<quest_key>.<descriptive_suffix>`
 
@@ -200,7 +200,7 @@ Examples:
 - `quest.kfo.vermin.completed`
 - `quest.ship.private_unlock`
 
-## Quest Objective Types
+### Quest Objective Types
 
 The `quest_objectives` table has a `objective_type` column that defines what kind of action is required. Here are the supported types and their configurations:
 
@@ -437,11 +437,11 @@ The `fields` array lists the columns in the `quest_objectives` table that are re
 
 Additional objective types can be added, but please indicate what you have added so I can add them to the code.
 
-# Game Theme
+## Game Theme
 
 The game of Starfire takes place in a galaxy powered by old stars, old machines, and old decisions—kept alive by people willing to deal with what still works.
 
-## The Galaxy, the Continuum, and the Long War
+### The Galaxy, the Continuum, and the Long War
 
 The galaxy of Starfire is not young. It is expansive, technologically advanced, and deeply reliant on systems that were designed centuries ago. Civilization did not grow slowly and carefully—it expanded rapidly, powered by breakthroughs that allowed humanity and allied species to spread farther and faster than they fully understood. That expansion succeeded, but it came at a cost: much of the technology that holds the galaxy together can no longer be rebuilt from first principles.
 

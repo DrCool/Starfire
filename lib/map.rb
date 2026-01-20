@@ -5,6 +5,19 @@ def show_map(room_id = nil, screen_params)
     return
   end
 
+  # Is user in an automated ship?
+  ship = Ship.where(is_automated: true).find { |s| s.home_room_id == room_id }
+  if ship and room.exits == ""
+    # ASCII map of a one-room spaceship
+    print "     _"
+    print "    / \\"
+    print "   /---\\"
+    print "  ,| #{$pastel.bright_blue("X")} |."
+    print " //+---+\\\\"
+    return
+  end
+
+
   map_width = screen_params[:cols].to_i
   map_height = screen_params[:rows].to_i - 8
 
@@ -57,7 +70,8 @@ def show_map(room_id = nil, screen_params)
   # Mapped rooms will share walls, so we need to account for that in the drawing
   map_grid = Array.new(map_height) { Array.new(map_width, ' ') }
 
-  rooms_in_map = Room.where(x: (top_left_x..bottom_right_x), y: (top_left_y..bottom_right_y)).index_by { |r| [r.x, r.y] }
+  rooms_in_map = Room.where(zone_id: room.zone_id, z: room.z, x: (top_left_x..bottom_right_x), y: (top_left_y..bottom_right_y))
+                    .index_by { |r| [r.x, r.y] }
 
   player_grid_x = nil
   player_grid_y = nil
@@ -82,10 +96,10 @@ def show_map(room_id = nil, screen_params)
     e_exits = e_room&.exits.to_s
     w_exits = w_room&.exits.to_s
 
-    open_n = exits.include?('n') || n_exits.include?('s')
-    open_s = exits.include?('s') || s_exits.include?('n')
-    open_e = exits.include?('e') || e_exits.include?('w')
-    open_w = exits.include?('w') || w_exits.include?('e')
+    open_n = exits.include?('n') && !n_room.nil? && n_exits.include?('s')
+    open_s = exits.include?('s') && !s_room.nil? && s_exits.include?('n')
+    open_e = exits.include?('e') && !e_room.nil? && e_exits.include?('w')
+    open_w = exits.include?('w') && !w_room.nil? && w_exits.include?('e')
 
     # Draw room box
     map_grid[grid_y][grid_x] = '+'
@@ -103,17 +117,17 @@ def show_map(room_id = nil, screen_params)
     map_grid[grid_y + 1][grid_x] = '|' unless open_w
     map_grid[grid_y + 1][grid_x + 4] = '|' unless open_e
 
-    # Draw exits
+    # Draw exits (only carve openings when reciprocal + neighbor exists)
     exits.each_char do |exit_dir|
       case exit_dir
       when 'n'
-        map_grid[grid_y][grid_x + 2] = ' '
+        map_grid[grid_y][grid_x + 2] = ' ' if open_n
       when 's'
-        map_grid[grid_y + 2][grid_x + 2] = ' '
+        map_grid[grid_y + 2][grid_x + 2] = ' ' if open_s
       when 'e'
-        map_grid[grid_y + 1][grid_x + 4] = ' '
+        map_grid[grid_y + 1][grid_x + 4] = ' ' if open_e
       when 'w'
-        map_grid[grid_y + 1][grid_x] = ' '
+        map_grid[grid_y + 1][grid_x] = ' ' if open_w
       when 'u'
         map_grid[grid_y][grid_x + 3] = '^'
       when 'd'

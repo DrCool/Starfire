@@ -47,6 +47,10 @@ module GameCommands
   end
 
   def parse_input(full_command)
+    if command.split(" ").first != "say" && command[0...1] != "'"
+      print_hold "\n\r"
+    end
+
     @command = full_command
     args = full_command.split(" ")
     command = args.shift
@@ -293,9 +297,17 @@ module GameCommands
           print creature_instance.creature.description
           print "#{creature_instance.creature_name.capitalize} health: [#{creature_instance.hp} / #{creature_instance.creature.hitmax}]"
           return
+        when :ship
+          ship = entity[:entity]
+          print ship.description
+          return
         when :object
+          obj = entity[:entity]
+          print obj.description
           return
         when :prop
+          prop = entity[:entity]
+          print prop.description
           return
         when :corpse
           print "It's a corpse. You can type 'search corpse' to see if it has any items you can take. After typing 'search corpse', the items or credits will appear in the room. Type 'get <item name>' to pick up any items, or 'get all'."

@@ -1,0 +1,339 @@
+{
+  "rooms": [
+{
+"id": "R001",
+"name": "Discreet Landing Concourse",
+"description": "A sheltered arrival platform glows under rain-streaked canopies and flickering signage.",
+"verbose_description": "You step onto a narrow arrival concourse tucked between two soot-dark towers.\n\nCondensation runoff rains from overhead vents, drumming on polyglass panels and turning the ground into a mirror of neon. A silent guidance strip pulses along the floor, herding arrivals toward the street like cattle with better branding.\n\nAbove, holo-ads stutter in the mist—smiling faces, impossible skies, and a corporate slogan that keeps rebooting mid-sentence. The air smells like ozone and warm circuitry.",
+"inside": 1,
+"outside": 0,
+"terrain_type_id": null,
+"room_type_id": 6
+},
+{
+"id": "R002",
+"name": "Rainlit Service Walk",
+"description": "A narrow service walk funnels you away from the terminal through dripping light and humming conduits.",
+"verbose_description": "This passage is half sidewalk, half maintenance channel, bordered by grated drains that gulp the city’s endless runoff.\n\nCable bundles snake along the walls, their insulation patched with tape and prayer. Every few seconds a vent exhales steam that tastes faintly metallic, like someone boiled coins.\n\nFootsteps echo oddly here—close enough to feel watched, too noisy to hide.",
+"inside": 0,
+"outside": 1,
+"terrain_type_id": null,
+"room_type_id": null
+},
+{
+"id": "R003",
+"name": "Neon Approach Avenue",
+"description": "A cramped avenue runs between high-rise bases, saturated in blue-pink haze and reflected rain.",
+"verbose_description": "Brightash closes in as you move—tower foundations like canyon walls, their lower levels wrapped in shuttered kiosks and security glass.\n\nHolo-ads drift overhead, glitching around power lines and drone lanes. A distant bass beat thumps through the concrete, synchronized with a transformer’s angry hum.\n\nA side spur peels away into darker territory, while the main flow continues toward heavier light and louder crowds.",
+"inside": 0,
+"outside": 1,
+"terrain_type_id": null,
+"room_type_id": null
+},
+{
+"id": "R004",
+"name": "Brightash Crossway Hub",
+"description": "The central crossway opens up briefly, where the city’s north–south and east–west arteries collide.",
+"verbose_description": "This is the heart of downtown: a rare patch of breathing room, immediately stolen back by noise.\n\nA north–south avenue intersects an east–west boulevard under a lattice of sky-rails and signage. Crowd flow becomes a living current—workers, couriers, and late-night shoppers moving with practiced impatience.\n\nAbove you, a rotating holo-billboard dances in the mist, its animation tearing every time lightning-like arcing jumps between two exposed conduits. Security drones circle lazily, pretending they aren’t listening.\n\nEvery direction looks like a promise and a threat.",
+"inside": 0,
+"outside": 1,
+"terrain_type_id": null,
+"room_type_id": 5
+},
+{
+"id": "R005",
+"name": "Commerce Boulevard Glare",
+"description": "A brighter stretch of boulevard gleams with storefront light and wet pavement reflections.",
+"verbose_description": "Here the towers show off their polished faces—at least at street level.\n\nGlass-front kiosks and micro-shops cling to the building bases like barnacles, each one screaming for attention with animated signage, scent emitters, and looping jingles. Rain pools in shallow grooves, turning the entire boulevard into an advertisement you can walk through.\n\nA side corridor slips away toward a darker loop of service passages, while the main street continues into denser foot traffic.",
+"inside": 0,
+"outside": 1,
+"terrain_type_id": null,
+"room_type_id": null
+},
+{
+"id": "R006",
+"name": "Towerfront Market Strip",
+"description": "A crowded strip of stalls and sealed lobbies buzzes under constant drizzle and shifting holo-light.",
+"verbose_description": "The market here is improvised but permanent—canvas awnings, welded frames, and power taps biting into public lines.\n\nStreet food smoke mixes with steam vent hiss, and the air carries the sweet-burnt smell of oil and spice. You catch fragments of conversation in a dozen languages, all of them tired.\n\nBetween stalls, you spot a heavy security door with a keypad that looks too expensive for this street. A raised walkway above suggests shortcuts—if you can find the stairs.\n\nThe city’s hum is louder here, like the buildings are arguing quietly with each other.",
+"inside": 0,
+"outside": 1,
+"terrain_type_id": null,
+"room_type_id": null
+},
+{
+"id": "R007",
+"name": "Skyrail Shadow Crossing",
+"description": "A shadowed crossing lies beneath elevated rails, where water drips in steady rhythms from above.",
+"verbose_description": "The boulevard narrows under the skyrail’s belly, turning the rain into a constant, percussive leak.\n\nMetal support pylons are layered with old stickers, newer warnings, and the occasional knife-carved name. A holo-ad projector mounted high up still works—barely—casting a dancer made of broken pixels onto the wet street.\n\nTo one side, a stairwell leads toward a grimy skybridge access. To the other, the main route pushes deeper into the maze of Brightash.",
+"inside": 0,
+"outside": 1,
+"terrain_type_id": null,
+"room_type_id": null
+},
+{
+"id": "R008",
+"name": "Holo-Billboard Overlook",
+"description": "A slightly elevated overlook offers a view of the glowing grid below through sheets of rain.",
+"verbose_description": "You’re a few steps higher here—enough to see the crossway’s currents and the boulevard’s glittering wet ribbon.\n\nA massive holo-billboard floats between towers on magnetized anchors, rotating slowly. Its light paints everything in shifting color, and occasionally the entire image jitters, exposing raw calibration grids before snapping back to a smiling spokesperson.\n\nWind pushes rain sideways across the platform. Somewhere close, a service drone whines as it struggles to keep its balance.\n\nFrom here, a more controlled facade draws your eye: clean lines, guarded access, and the kind of architecture that expects obedience.",
+"inside": 0,
+"outside": 1,
+"terrain_type_id": null,
+"room_type_id": null
+},
+{
+"id": "R009",
+"name": "Westbound Narrow Avenue",
+"description": "A narrow avenue slopes into seedier blocks where neon looks older and security looks bored.",
+"verbose_description": "The west side of Brightash is where maintenance becomes improvisation.\n\nSignage here flickers more than it shines, and the rainwater carries a darker film. The walls are layered with grime and old paint, and the occasional vent coughs heat like a sick animal.\n\nFoot traffic thins to locals and people trying to look like locals. A pair of security cams track you for a second too long before drifting away.\n\nThe street continues toward a junction of alleys and a more official-looking corridor beyond.",
+"inside": 0,
+"outside": 1,
+"terrain_type_id": null,
+"room_type_id": null
+},
+{
+"id": "R010",
+"name": "Guarded Midway Checkpoint",
+"description": "A controlled checkpoint divides the flow, lit by hard white lamps that cut through the neon haze.",
+"verbose_description": "This corridor feels engineered rather than grown.\n\nMetal barricades guide pedestrians through a narrow channel under camera eyes. A drone hovers near the ceiling, its lens swiveling with quiet, predatory patience. The air is colder here, filtered—less street food, more antiseptic and ozone.\n\nTo the east, the crossway pulses with life. To the west, the city darkens. Forward, the corridor opens toward denser towerfront infrastructure and a loop of side passages.\n\nA sign reads: COMPLIANCE IS COMFORT, as if it’s a joke nobody laughs at.",
+"inside": 0,
+"outside": 1,
+"terrain_type_id": null,
+"room_type_id": null
+},
+{
+"id": "R011",
+"name": "Vaultline Arcade Entry",
+"description": "A covered arcade stretches between towers, lined with hardened doors, kiosks, and quiet security.",
+"verbose_description": "Rain fades to a muffled patter under the arcade canopy.\n\nHere the lighting changes: less neon smear, more deliberate illumination. Storefronts sit behind reinforced glass, and the floor is scored with guidance grooves that keep the crowd moving like it’s on rails.\n\nA bank-grade access panel glows behind a security desk, and nearby, a polished vendor frontage advertises clean gear at dirty prices.\n\nFarther on, a side route curls into a circular service loop where the city’s maintenance heart beats out of sight.",
+"inside": 1,
+"outside": 0,
+"terrain_type_id": null,
+"room_type_id": null
+},
+{
+"id": "R012",
+"name": "Brightash Vendor Row",
+"description": "A row of vendors sell tools, chargers, and street-proof gear beneath warm lights and watchful cameras.",
+"verbose_description": "This is commerce with a protective shell.\n\nStalls are semi-permanent, bolted to the floor, with power hookups that don’t look stolen. You see weapons-grade adhesives, ration packs, patched armor plates, and small electronics that might be legal if you don’t ask questions.\n\nA vendor’s holo-sign scrolls through deals too fast to read, as if speed itself can prevent scrutiny. A security drone pauses overhead, then drifts on.\n\nThe surrounding doors lead deeper into tower interiors and back out toward the wet streets.",
+"inside": 1,
+"outside": 0,
+"terrain_type_id": null,
+"room_type_id": 1
+},
+{
+"id": "R013",
+"name": "High-Rise Lobby Line",
+"description": "A sleek corporate lobby entrance glows behind security glass, its elevator access locked tight.",
+"verbose_description": "The building here is the kind that pretends it isn’t part of the city’s grime.\n\nPolished stone meets reinforced glass, and a security desk sits like a judge behind a quiet barrier. The elevator bank beyond is immaculate—and useless without clearance. A holo-placard cycles through corporate slogans in soothing tones.\n\nOutside the glass, the street remains wet and loud. Inside, the air is filtered and still.\n\nA side door with a maintenance badge reader leads to less glamorous routes, and the main boulevard continues toward more dense downtown structures.",
+"inside": 0,
+"outside": 1,
+"terrain_type_id": null,
+"room_type_id": null
+},
+{
+"id": "R014",
+"name": "Skybridge Access Stairs",
+"description": "A stairwell climbs to a raised walkway, damp steps lit by thin strips of emergency neon.",
+"verbose_description": "The stairs are narrow and steep, their railings slick with condensation.\n\nSomeone has painted arrows on the wall—old guidance for locals that doesn’t match any official map. Halfway up, a vent breathes warm air into your face, smelling faintly of hot plastic.\n\nAbove, you can hear the hollow echo of footsteps on a skybridge. Below, the city’s roar becomes a distant pressure.\n\nA landing opens toward a more insulated corridor that looks like it leads to services, clinics, and training spaces.",
+"inside": 0,
+"outside": 1,
+"terrain_type_id": null,
+"room_type_id": null
+},
+{
+"id": "R015",
+"name": "Raised Walkway Spine",
+"description": "A raised walkway spans between towers, offering shortcuts over the street’s crowded choke points.",
+"verbose_description": "You’re above the worst of the crowd now, but not above the city.\n\nRain lashes sideways across the skybridge, and the wind pushes holo-projections into ghostly distortions. Down below, the boulevard gleams like a circuit board—wet traces of light.\n\nA sealed service hatch hums with power, and a nearby tower entrance shows a lit interior corridor leading to training facilities. Farther along, the walkway ends at a narrow access that drops back to street level.\n\nYou get the sense that whoever built these bridges knew the streets would eventually become too crowded to breathe.",
+"inside": 0,
+"outside": 1,
+"terrain_type_id": null,
+"room_type_id": null
+},
+{
+"id": "R016",
+"name": "Maintenance Loop Gate",
+"description": "A service passage splits off the boulevard, marked by hazard paint and the smell of hot coolant.",
+"verbose_description": "This is where Brightash hides its bones.\n\nThe walls are ribbed with exposed conduits and access panels, each one labeled and ignored. Steam hisses from a pressure seam, and the floor is a patchwork of welded plates and drainage grates.\n\nThe passage bends into a loop—an intentional circuit of maintenance corridors used by workers, drones, and anyone who doesn’t want to be seen.\n\nThe lighting is dimmer, warmer, and slightly sickly, like the city’s internal organs are showing.",
+"inside": 1,
+"outside": 0,
+"terrain_type_id": null,
+"room_type_id": null
+},
+{
+"id": "R017",
+"name": "Coolant Steam Corridor",
+"description": "A corridor of pipes and valves breathes steam in pulses, fogging the air with chemical warmth.",
+"verbose_description": "The maintenance loop tightens here.\n\nLarge coolant pipes run overhead like arteries, their insulation stained and patched. Every few seconds a valve vents, filling the corridor with a cloud that tastes faintly bitter.\n\nGraffiti marks the panels—worker jokes, warnings, and a crude map that might be useful if it isn’t lying.\n\nYour footsteps ring against metal. Somewhere nearby, a service drone clicks its legs in the fog and then goes still.",
+"inside": 1,
+"outside": 0,
+"terrain_type_id": null,
+"room_type_id": null
+},
+{
+"id": "R018",
+"name": "Service Junction Ring",
+"description": "A circular junction links multiple service routes, its center occupied by a humming power node.",
+"verbose_description": "This spot feels like a designed meeting point for the unseen.\n\nA central power node hums behind a protective cage, throwing a low vibration through the floor. Access tunnels branch out, each one labeled with faded stencil text.\n\nThe air is warmer, and the light flickers between amber and pale green. A ladderwell nearby suggests vertical shortcuts, and a side passage continues deeper into the loop.\n\nA quiet door with a medical symbol—half peeled off—sits nearby, hinting at a clinic hidden from the main flow.",
+"inside": 1,
+"outside": 0,
+"terrain_type_id": null,
+"room_type_id": null
+},
+{
+"id": "R019",
+"name": "Panelwork Service Bend",
+"description": "A tight bend in the service route is lined with access panels that rattle softly with the city’s heartbeat.",
+"verbose_description": "The corridor curves around a structural support, forcing you close to the walls.\n\nPanels here aren’t sealed well—some are slightly ajar, leaking light and warm air. You hear the faint whirr of fans and the click of relays, as if the building is thinking.\n\nA smear of oil trails toward a drain. The smell is sharp, mixed with damp metal.\n\nThe loop continues onward, and another corridor opens toward a quieter, more clinical interior.",
+"inside": 1,
+"outside": 0,
+"terrain_type_id": null,
+"room_type_id": null
+},
+{
+"id": "R020",
+"name": "Brightash Vaultbank Foyer",
+"description": "A fortified foyer with scanners and armored glass announces the bank’s presence with quiet menace.",
+"verbose_description": "The Vaultbank doesn’t try to look friendly.\n\nArmored glass partitions the entryway, and the lighting is clean, white, and unflattering. A set of scanners sweep anyone who enters, the beams visible in the mist that follows people in from the street.\n\nTwo security drones hover at fixed positions like decorative threats. A desk terminal offers storage services, account transfers, and a polite warning about liability.\n\nThe surrounding arcade connects back to the city’s main flow, but here you feel the weight of money—protected, prioritized, and very real.",
+"inside": 1,
+"outside": 0,
+"terrain_type_id": null,
+"room_type_id": 2
+},
+{
+"id": "R021",
+"name": "Filtered Transit Corridor",
+"description": "A cleaner corridor carries filtered air and low lighting toward more controlled downtown facilities.",
+"verbose_description": "The noise drops a notch here.\n\nAir scrubbers hum behind ceiling grates, stripping out the street’s smells and replacing them with something neutral and sterile. The floor is smoother, with fewer puddles, and the walls are lined with small indicator lights that pulse like status updates.\n\nA few people move through quietly, heads down. Nobody lingers.\n\nAhead, the corridor curls into a loop of back passages—one of Brightash’s hidden circulatory systems.",
+"inside": 1,
+"outside": 0,
+"terrain_type_id": null,
+"room_type_id": null
+},
+{
+"id": "R022",
+"name": "Clinic Access Junction",
+"description": "A junction splits toward a discreet clinic entrance and deeper corridors that feel deliberately uninviting.",
+"verbose_description": "The corridor divides around a structural pillar banded with caution stripes.\n\nA worn medical emblem points toward a side door that looks reinforced more for privacy than protection. The main passage continues, looping through service-adjacent hallways that carry the faint smell of antiseptic.\n\nA wall display cycles emergency advisories nobody seems to read. Somewhere behind the panels, a compressor kicks on with a heavy thud.\n\nThis feels like a place designed to be found only by those who need it.",
+"inside": 1,
+"outside": 0,
+"terrain_type_id": null,
+"room_type_id": null
+},
+{
+"id": "R023",
+"name": "Backhall Loop Return",
+"description": "A backhall curves around and returns toward the bank arcade, its lights dim and steady.",
+"verbose_description": "This corridor completes the loop—quiet, practical, and slightly too narrow.\n\nUtility access hatches line the walls, and the floor vibrates faintly with nearby machinery. The lighting here doesn’t flicker; it simply endures.\n\nYou hear muted voices through a wall—staff chatter, a complaint, a laugh that cuts off quickly.\n\nThe corridor opens back toward the Vaultbank foyer, putting you once again near the city’s official money gravity.",
+"inside": 1,
+"outside": 0,
+"terrain_type_id": null,
+"room_type_id": null
+},
+{
+"id": "R024",
+"name": "Deadlit Side Alley",
+"description": "A short alley dead-ends beneath a broken sign, where rain collects in black puddles.",
+"verbose_description": "The alley is too narrow for comfort and too quiet for downtown.\n\nA shattered neon sign buzzes weakly, occasionally sparking and briefly illuminating the walls in violent color. Water drips from a fire escape, counting seconds you didn’t ask for.\n\nSomeone has painted a warning on the brick in smeared fluorescent ink. The message is half washed away, which somehow makes it worse.\n\nThere’s nowhere to go but back, and that might be the point.",
+"inside": 0,
+"outside": 1,
+"terrain_type_id": null,
+"room_type_id": null
+},
+{
+"id": "R025",
+"name": "Side Alley Cantina Door",
+"description": "A narrow alley branches off the main street, ending at a door pulsing with warm, low light.",
+"verbose_description": "The alley smells like wet concrete and fried spice.\n\nNeon reflections jitter across puddles, and a small holo-sign—deliberately dim—flickers the cantina’s name in looping script. The door is reinforced, but the music leaking through makes it feel inviting anyway.\n\nA security camera above the frame pretends not to exist.\n\nThis place is off the main flow, exactly where you’d put a bar if you wanted regulars and not trouble—though trouble always shows up eventually.",
+"inside": 0,
+"outside": 1,
+"terrain_type_id": null,
+"room_type_id": null
+},
+{
+"id": "R026",
+"name": "The Dripping Neon Cantina",
+"description": "A low-ceiling cantina glows with amber light, loud music, and the comfort of being unseen.",
+"verbose_description": "Warmth hits you first—then sound.\n\nThe cantina is cramped but alive: patched booths, a scarred bar counter, and a haze of steam and smoke that makes every holo-projection look like a ghost. Music thumps through the floor, and the crowd noise blends into a constant, friendly growl.\n\nBehind the bar, a dispenser array pours drinks that may or may not be legal. A wall screen plays a loop of vintage ads, their smiles too wide.\n\nFor a moment, Brightash feels less like a machine and more like a place people survive together.",
+"inside": 1,
+"outside": 0,
+"terrain_type_id": null,
+"room_type_id": 7
+},
+{
+"id": "R027",
+"name": "Locked Elevator Vestibule",
+"description": "A small vestibule faces a locked elevator bank, guarded by a silent keypad and a watching lens.",
+"verbose_description": "This is the edge of access.\n\nA polished door leads into a tower’s internal elevator line, but the control panel is sealed behind a clearance scanner. A single camera eye sits above, its lens reflecting your face back at you like an accusation.\n\nA poster nearby advertises luxury residences high above the rain. The image shows sunlight.\n\nThe vestibule connects back to the street’s hustle, reminding you that the upper levels exist—but not for you.",
+"inside": 0,
+"outside": 1,
+"terrain_type_id": null,
+"room_type_id": null
+},
+{
+"id": "R028",
+"name": "Training Loft Intake",
+"description": "A guarded intake hall leads into a training loft, where the air smells of sweat, ozone, and disinfectant.",
+"verbose_description": "The entrance is plain, but it’s maintained.\n\nA sign in clean lettering outlines basic rules and fees, and a wall-mounted sensor tracks entrants with indifferent precision. The sound of impacts echoes from deeper inside—sparring, drills, or someone learning the hard way.\n\nLight strips run along the floor, guiding you forward. A few lockers line one wall, dented from repeated frustration.\n\nThis is where people come to get tougher, or to prove they already are.",
+"inside": 1,
+"outside": 0,
+"terrain_type_id": null,
+"room_type_id": 8
+},
+{
+"id": "R029",
+"name": "Night Clinic Medbay",
+"description": "A compact night clinic hums with sterile light and quiet machines ready to put you back together.",
+"verbose_description": "The medbay is small but efficient.\n\nAuto-doc pods line the wall, their lids fogged with condensation. A faint antiseptic smell overlays the city’s ozone, and the lighting is calm—designed to reduce panic. A medical drone glides between stations, its tools folded away like polite teeth.\n\nA screen displays triage status and a list of fees nobody wants to read. In a corner, a sink runs recycled water over stained hands that never seem to get clean.\n\nIt’s not comforting, exactly—but it’s dependable, and in Brightash that counts.",
+"inside": 1,
+"outside": 0,
+"terrain_type_id": null,
+"room_type_id": 3
+},
+{
+"id": "R030",
+"name": "Fixer Mission Kiosk",
+"description": "A discreet mission kiosk waits by the junction, its screen scrolling jobs in flickering green text.",
+"verbose_description": "The kiosk looks unofficial, which is probably why it survives.\n\nA battered terminal is bolted to the wall, its interface simple: lists of jobs, bounties, courier requests, and \"quiet favors\" that don’t explain themselves. A small slot accepts cred-chits, and a scanner pad glows for identity confirmation.\n\nSomeone has scratched a note into the casing: DON'T TAKE THE EASY ONES.\n\nThe air here carries mixed scents—antiseptic from the nearby clinic and the dry smell of overheated electronics from the back corridors.",
+"inside": 1,
+"outside": 0,
+"terrain_type_id": null,
+"room_type_id": null
+}
+],
+"edges": [
+{ "a": "R001", "b": "R002" },
+{ "a": "R002", "b": "R003" },
+{ "a": "R003", "b": "R004" },
+{ "a": "R004", "b": "R005" },
+{ "a": "R005", "b": "R006" },
+{ "a": "R006", "b": "R007" },
+{ "a": "R007", "b": "R008" },
+{ "a": "R009", "b": "R010" },
+{ "a": "R010", "b": "R011" },
+{ "a": "R011", "b": "R012" },
+{ "a": "R012", "b": "R013" },
+{ "a": "R013", "b": "R014" },
+{ "a": "R014", "b": "R015" },
+{ "a": "R004", "b": "R010" },
+{ "a": "R006", "b": "R012" },
+{ "a": "R008", "b": "R014" },
+{ "a": "R005", "b": "R016" },
+{ "a": "R016", "b": "R017" },
+{ "a": "R017", "b": "R018" },
+{ "a": "R018", "b": "R019" },
+{ "a": "R019", "b": "R016" },
+{ "a": "R011", "b": "R020" },
+{ "a": "R020", "b": "R021" },
+{ "a": "R021", "b": "R022" },
+{ "a": "R022", "b": "R023" },
+{ "a": "R023", "b": "R020" },
+{ "a": "R003", "b": "R024" },
+{ "a": "R007", "b": "R025" },
+{ "a": "R025", "b": "R026" },
+{ "a": "R013", "b": "R027" },
+{ "a": "R015", "b": "R028" },
+{ "a": "R018", "b": "R029" },
+{ "a": "R022", "b": "R030" }
+]
+}
