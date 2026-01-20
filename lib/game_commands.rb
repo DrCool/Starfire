@@ -273,6 +273,8 @@ module GameCommands
     when "create_llm_quest"
       create_llm_quest
       return
+    when "creds", "credits"
+      print "You have #{$pastel.bright_yellow.underline(@player.credits.to_i)} credits."
     when "exa", "examine"
       if text.strip == "credits"
         print "You have #{$pastel.bright_yellow.underline(@player.credits.to_i)} credits. These are the universal currency used throughout the galaxy. You can earn credits by completing quests, selling items, or defeating enemies. At shops, you can use credits to buy items you need for your adventures."

@@ -1,4 +1,5 @@
 require_relative '../model/event'
+require_relative '../model/room_type'
 
 class PlayerCharacter < ActiveRecord::Base
 	attr_accessor :client # contains the player's socket connection for things like @client.puts "text"
@@ -78,6 +79,14 @@ class PlayerCharacter < ActiveRecord::Base
 
   def died(data)
   	print $pastel.bright_red("\r\n\r\n    You have died!\r\n\r\n")
+
+    # Find nearest medbay and move player there
+    medbay = Room.find_by(room_type_id: RoomType::MEDBAY)
+    self.room = medbay if medbay.present?
+    self.save
+
+    print "Respawning at the nearest medbay...\r\n"
+
     World::Manager.room_event(Event.new({
     	action: ACTION_DIE,
     	room: self.room,
@@ -86,8 +95,7 @@ class PlayerCharacter < ActiveRecord::Base
     	sender_type: SENDER_TYPE_PLAYER 
   	}))
 
-    print "But for now, your health has been reset to full."
-    self.hp = self.hitmax
+    self.hp = (self.hitmax / 2).round
     self.save
   end
 
