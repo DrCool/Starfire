@@ -16,6 +16,7 @@ require_relative '../model/prop'
 require_relative 'quest_progression'
 require_relative 'map'
 require_relative '../lib/quest_commands'
+require_relative '../LLM/create_zone_map'
 require 'json'  # added to allow JSON generation
 
 module GameCommands
@@ -149,7 +150,8 @@ module GameCommands
           type: FIELD_TYPE_CANCEL
         }
       ]
-      form(data)
+      d = form(data)
+      print d
 
       return
     when "test"
@@ -188,7 +190,10 @@ module GameCommands
       train
       return
     when "map"
-      show_map @room.id, @screen_params
+      show_map Room, @room.id, @screen_params
+      return
+    when "zonemap"
+      create_zone_map
       return
     when "board"
       board_ship text

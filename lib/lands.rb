@@ -205,6 +205,67 @@ class Lands
     end
   end
 
+  # Heuristic check for obvious non-telnet scanner/probe payloads.
+  # If we see these, the safest move is to drop the connection immediately.
+  def suspicious_probe_payload?(data)
+    return false if data.nil? || data.empty?
+
+    # Common service probes that show up when you expose a raw TCP port.
+    s = data.dup
+    begin
+      ascii = s.force_encoding("ASCII-8BIT").to_s
+    rescue StandardError
+      ascii = s.to_s
+    end
+
+    lowered = ascii.downcase
+
+    return true if lowered.include?("connect_data=")
+    return true if lowered.include?("mssqlserver")
+    return true if lowered.include?("mstshash=")
+    return true if lowered.include?("test.$cmd")
+    return true if lowered.include?("serverstatus")
+    return true if lowered.include?("filebeat")
+
+    # Telnet negotiation uses IAC (255). If we have a bunch of bytes but no IAC and
+    # most bytes are non-printable, it's almost certainly not an interactive telnet client.
+    bytes = ascii.bytes
+    has_iac = bytes.include?(IAC)
+
+    printable = 0
+    bytes.each do |b|
+      # printable ASCII + CR/LF/TAB/ESC
+      printable += 1 if (b >= 32 && b <= 126) || b == 9 || b == 10 || b == 13 || b == 27
+    end
+
+    ratio = bytes.length > 0 ? (printable.to_f / bytes.length.to_f) : 1.0
+
+    # If the client sent data immediately, and it doesn't look like text or telnet,
+    # treat it as a probe.
+    (!has_iac && bytes.length >= 16 && ratio < 0.60)
+  end
+
+  # Best-effort validation that the remote side is behaving like a telnet client.
+  # Many scanners will immediately send protocol-specific binary/text probes. A real telnet
+  # client usually stays quiet until the server speaks, and then responds with IAC negotiation.
+  def telnet_connection_valid?
+    return false if @client.nil?
+
+    # no-connect-pause check.
+    # Do a zero-wait peek for immediate non-telnet probe payloads.
+    initial = telnet_read_available(max_bytes_total: 512, timeout: 0.0)
+    return false if suspicious_probe_payload?(initial)
+
+    true
+  end
+
+  def remote_ip
+    return "unknown" if @client.nil?
+    @client.peeraddr[3]
+  rescue StandardError
+    "unknown"
+  end
+
   # Telnet negotiation: keeps your exact existing behavior (SGA + ECHO),
   # and adds a NAWS request. Any negotiation responses are consumed so they
   # don't appear as weird characters later.
@@ -233,6 +294,24 @@ class Lands
 
   def start_game(client)
     @client = client
+    # Drop obvious non-telnet scanners/bots early when exposing the port via ngrok.
+    unless telnet_connection_valid?
+      begin
+        puts "Rejected non-telnet connection from #{remote_ip}"
+      rescue StandardError
+        # ignore
+      end
+      begin
+        @client.close
+      rescue StandardError
+        # ignore
+      end
+      Thread.current.exit
+    end
+    # Negotiate telnet options early so line-mode/CRLF behave for login prompts.
+    telnet_negotiate!
+    get_screen_size
+
     show_cursor
     title_screen
     @user, @player = login
@@ -240,10 +319,6 @@ class Lands
 #@player = PlayerCharacter.first
     print "Welcome, #{@player.name}!\n"
     Thread.current[:op].set_player(@player)
-
-    # Negotiate telnet options (keeps existing SGA+ECHO behavior, plus NAWS for terminal size)
-    telnet_negotiate!
-    get_screen_size
 
     load_room
     World::Manager.room_event(Event.new({
@@ -259,6 +334,10 @@ class Lands
   end
 
   def login
+    # If the socket was closed/rejected earlier, bail out cleanly.
+    if @client.nil? || @client.closed?
+      Thread.current.exit
+    end
     user = nil
     player = nil
     loop do # loop through login sequence until we have a valid user
@@ -403,9 +482,93 @@ class Lands
   def get_line(simple_mode = false)
     line = ""
     if simple_mode
-      text = @client.gets
-      text = text.chomp.strip if text.present?
-      return text
+      # Telnet clients vary: some send CRLF, some send only CR.
+      # Using `gets` can hang if the client doesn't send \n. So we read raw bytes
+      # and stop on CR or LF.
+      line = ""
+      while true
+        begin
+          data, = @client.recvfrom(1024)
+        rescue Errno::ECONNRESET, Errno::EPIPE, EOFError, IOError, SystemCallError
+          disconnect_player_and_exit!
+        end
+
+        next if data.nil? || data.empty?
+
+        i = 0
+        while i < data.bytesize
+          ch = data.getbyte(i)
+
+          # Ignore telnet negotiation bytes (IAC sequences) so they don't pollute input.
+          if ch == IAC
+            cmd = data.getbyte(i + 1)
+            break if cmd.nil?
+
+            if cmd == SB
+              # Consume subnegotiation if present in this buffer.
+              j = i + 2
+              while (j + 1) < data.bytesize
+                if data.getbyte(j) == IAC && data.getbyte(j + 1) == SE
+                  i = j + 2
+                  break
+                end
+                j += 1
+              end
+              # If we didn't find IAC SE, stop and wait for more bytes.
+              break if i < j
+              next
+            end
+
+            # Simple negotiation commands are 3 bytes: IAC <cmd> <opt>
+            if [DO, WILL, 252, 254].include?(cmd) # DO, WILL, WONT(252), DONT(254)
+              i += 3
+              next
+            end
+
+            # Escaped 255 (IAC IAC)
+            if cmd == IAC
+              i += 2
+              next
+            end
+
+            i += 1
+            next
+          end
+
+          # Backspace/delete
+          if ch == 127
+            if line != ""
+              line = line[0...-1]
+              erase_client_characters(1)
+            end
+            i += 1
+            next
+          end
+
+          # Enter (CR or LF)
+          if ch == 13 || ch == 10
+            # If CRLF, consume both but return once.
+            if ch == 13 && (i + 1) < data.bytesize && data.getbyte(i + 1) == 10
+              i += 1
+            end
+            print_hold "\r\n"
+            return line.to_s.chomp.strip
+          end
+
+          # Ignore nulls
+          if ch == 0
+            i += 1
+            next
+          end
+
+          # Normal character
+          char_str = ch.chr
+          print_hold char_str
+          line += char_str
+
+          i += 1
+        end
+      end
     else
       while true
         char = @client.recvfrom(3)
@@ -691,11 +854,10 @@ class Lands
         end
       elsif key == KEY.ESC
         cancel = true
-        break
       elsif key == KEY.DELETE
         field_type = data[sel_index][:type]
         if field_type == FIELD_TYPE_STRING or field_type == FIELD_TYPE_INTEGER
-          len = data[sel_index][:value][:existing_value].length
+          len = data[sel_index][:value][:existing_value].to_s.length
           data[sel_index][:value][:existing_value] = data[sel_index][:value][:existing_value][0...len-1]
         end
       elsif key == KEY.SPACE
@@ -713,7 +875,13 @@ class Lands
         end
       end
 
-      break if cancel or save
+      if save
+        clear_block data.length
+        show_cursor
+        return data
+      end
+
+      break if cancel
 
       print_hold "\e[#{data.length-2}A\r"
       print_form(sel_index, data)
@@ -754,7 +922,7 @@ class Lands
         value = 0 if value.nil?
         value = value.to_s
         max_chars = item[:value][:max_display_chars]
-        value = [0...max_chars-3]+"..." if value.length > max_chars
+        value = value[0...max_chars-3]+"..." if value.length > max_chars
         value = value + (" " * (max_chars-value.length)) if value.length < max_chars
 
         print prefix + $pastel.decorate(value+" ", fore_color, back_color)

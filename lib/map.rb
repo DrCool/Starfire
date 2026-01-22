@@ -1,5 +1,5 @@
-def show_map(room_id = nil, screen_params)
-  room = Room.find_by(id: room_id)
+def show_map(rooms, room_id = nil, screen_params)
+  room = rooms.find_by(id: room_id)
   if room.nil?
     print "You are in an unknown location.\r\n"
     return
@@ -16,10 +16,6 @@ def show_map(room_id = nil, screen_params)
     print " //+---+\\\\"
     return
   end
-
-
-  map_width = screen_params[:cols].to_i
-  map_height = screen_params[:rows].to_i - 8
 
   max_cols = screen_params[:cols].to_i
   max_rows = screen_params[:rows].to_i - 8
@@ -64,13 +60,13 @@ def show_map(room_id = nil, screen_params)
   # +---+
   # For an exit "wud" (west, up, down), draw like this:
   # +---+
-  #  ^ v+
+  #  ^ v|
   # +---+
 
   # Mapped rooms will share walls, so we need to account for that in the drawing
   map_grid = Array.new(map_height) { Array.new(map_width, ' ') }
 
-  rooms_in_map = Room.where(zone_id: room.zone_id, z: room.z, x: (top_left_x..bottom_right_x), y: (top_left_y..bottom_right_y))
+  rooms_in_map = rooms.where(zone_id: room.zone_id, z: room.z, x: (top_left_x..bottom_right_x), y: (top_left_y..bottom_right_y))
                     .index_by { |r| [r.x, r.y] }
 
   player_grid_x = nil
