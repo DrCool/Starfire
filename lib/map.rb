@@ -18,11 +18,11 @@ def show_map(rooms, room_id = nil, screen_params)
   end
 
   max_cols = screen_params[:cols].to_i
-  max_rows = screen_params[:rows].to_i - 8
+  max_rows = screen_params[:rows].to_i
 
   # Guard against tiny terminals
-  if max_cols < 5 || max_rows < 3
-    print "Screen too small to render a map.\r\n"
+  if max_cols < 9 || max_rows < 5
+    print "Your terminal is too small to render a map.\r\n"
     return
   end
 
@@ -206,6 +206,7 @@ def show_map(rooms, room_id = nil, screen_params)
       print trimmed
     end
   else
+    ap "Rendering cropped map view"
     # Cropped mode: center crop window on the player
     left = player_grid_x - (max_cols / 2)
     top  = player_grid_y - (max_rows / 2)
@@ -238,5 +239,7 @@ def show_map(rooms, room_id = nil, screen_params)
       line = truncate_ansi.call(line, max_cols)
       print line
     end
+
+    ap "Map cropped to #{max_cols}x#{max_rows} centered on player at (#{player_grid_x}, #{player_grid_y})"
   end
 end
