@@ -25,4 +25,8 @@ def create_zone_map
   current_room = rooms.first
 
   show_map rooms, current_room.id, @screen_params
+
+  # Put player in the first room for testing
+
+
 end
