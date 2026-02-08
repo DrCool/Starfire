@@ -1333,14 +1333,16 @@ class Lands
     vector = World::Manager.dir_list.find { |e| e.has_key?(dir.to_sym) }.values.first
     # vector returns a hash like:  {:x=>1, :y=>0, :z=>0}
 
-    World::Manager.room_event(Event.new({
-      action: ACTION_EXIT_ROOM,
-      room: @room,
-      message: "#{$pastel.bright_yellow(@player.name)} went #{vector[:to_dir]}.",
-      data: vector,
-      player: @player,
-      sender_type: SENDER_TYPE_PLAYER
-    }))
+    unless preview_room?(@room)
+      World::Manager.room_event(Event.new({
+        action: ACTION_EXIT_ROOM,
+        room: @room,
+        message: "#{$pastel.bright_yellow(@player.name)} went #{vector[:to_dir]}.",
+        data: vector,
+        player: @player,
+        sender_type: SENDER_TYPE_PLAYER
+      }))
+    end
 
     @player.x = @player.x + vector[:x]
     @player.y = @player.y + vector[:y]
@@ -1356,20 +1358,24 @@ class Lands
       load_room
     end
 
-    World::Manager.room_event(Event.new({
-      action: ACTION_ENTER_ROOM,
-      room: @room,
-      message: "#{$pastel.bright_yellow(@player.name)} entered from #{vector[:from_dir]}.",
-      data: vector,
-      player: @player,
-      sender_type: SENDER_TYPE_PLAYER
-    }))
+    unless preview_room?(@room)
+      World::Manager.room_event(Event.new({
+        action: ACTION_ENTER_ROOM,
+        room: @room,
+        message: "#{$pastel.bright_yellow(@player.name)} entered from #{vector[:from_dir]}.",
+        data: vector,
+        player: @player,
+        sender_type: SENDER_TYPE_PLAYER
+      }))
+    end
 
-    check_for_quest_objective({
-      objective_type: "visit",
-      target_type: "room",
-      target_id: @room.id
-    })
+    unless preview_room?(@room)
+      check_for_quest_objective({
+        objective_type: "visit",
+        target_type: "room",
+        target_id: @room.id
+      })
+    end
 
     print_location
   end
@@ -1644,14 +1650,30 @@ class Lands
     print_location
   end
 
+  def preview_room?(room = @room)
+    room.present? && room.id.to_i < 0
+  end
+
+  def find_room_from_preview_or_db(x, y, z)
+    xyz_hash = "#{x},#{y},#{z}"
+    preview_room = @preview_rooms.find_by(xyz_hash: xyz_hash) if @preview_rooms.present?
+    return preview_room if preview_room.present?
+
+    Room.find_by(xyz_hash: xyz_hash)
+  end
+
   def load_room(x = @player.x, y = @player.y, z = @player.z)
     @room_saying_thread.kill if @room_saying_thread.present?
-    @room = Room.find_by(xyz_hash: "#{x},#{y},#{z}")
+    @room = find_room_from_preview_or_db(x, y, z)
     if @room.present?
-      @room_sayings = RoomSaying.where(room_id: @room.id)
-      initialize_room_sayings
-      @player.room_id = @room.id
-      @player.save
+      if preview_room?(@room)
+        @room_sayings = []
+      else
+        @room_sayings = RoomSaying.where(room_id: @room.id)
+        initialize_room_sayings
+        @player.room_id = @room.id
+        @player.save
+      end
     end
 
   end
@@ -1743,6 +1765,19 @@ class Lands
   def print_location(verbose: false)
     exit_list = "none"
     puts @screen_params
+
+    # Test if the room exists and can be loaded before trying to access its data, to avoid crashing the client if the room was recently modified or deleted.
+    begin
+      test = @room.name
+    rescue
+      print $pastel.bright_red("Error loading room data. This probably happened because you are in a room that no longer exists!")
+      print "You will now be moved to the starting location.\n\n"
+      @player.x = 600
+      @player.y = 600
+      @player.z = 100
+      load_room
+    end
+
     print $pastel.bright_white.on_blue(" " + @room.name + " ") if @room.name.present?
     if !verbose
       print @room.description.gsub(/\\n/, "\n")

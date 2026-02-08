@@ -190,7 +190,13 @@ module GameCommands
       train
       return
     when "map"
-      show_map Room, @room.id, @screen_params
+      rooms_for_map = Room
+      if @preview_rooms.present?
+        in_preview = @preview_rooms.find_by(id: @room.id).present? ||
+                     @preview_rooms.find_by(xyz_hash: "#{@player.x},#{@player.y},#{@player.z}").present?
+        rooms_for_map = @preview_rooms if in_preview
+      end
+      show_map rooms_for_map, @room.id, @screen_params
       return
     when "zonemap"
       create_zone_map

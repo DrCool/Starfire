@@ -21,12 +21,23 @@ def create_zone_map
   ap rooms
   ap rooms.length
 
+  # Use negative IDs so preview rooms never collide with persisted DB room IDs.
+  rooms.each_with_index do |room, idx|
+    room.id = -(idx + 1)
+  end
+
   # Pick a “current room” for preview; typically rooms.first (R001).
   current_room = rooms.first
+  return if current_room.nil?
 
   show_map rooms, current_room.id, @screen_params
 
-  # Put player in the first room for testing
+  @preview_rooms = rooms
+  @player.x = current_room.x
+  @player.y = current_room.y
+  @player.z = current_room.z
+  load_room
+  print_location
 
 
 end
